@@ -122,8 +122,11 @@ def load_row(record, needs_mtp, width):  # noqa: C901
     ):
         raise ValueError("Target cache and manifest mismatch")
     length = len(data["ids"])
-    if data["ids"].ndim != 1 or data["ids"].dtype != torch.long:
-        raise ValueError("Cache IDs must be a 1D int64 tensor")
+    if data["ids"].ndim != 1 or data["ids"].dtype not in (torch.int32, torch.int64):
+        raise ValueError("Cache IDs must be a 1D int32/int64 tensor")
+    # vLLM target captures use int32; native-MTP sidecars use int64.
+    # Canonicalize without changing token identity or accepting floating IDs.
+    data["ids"] = data["ids"].long()
     if data["prompt_length"] != record["prompt_length"]:
         raise ValueError("Prompt boundary differs from manifest")
     if data["teacher_hidden"].shape != (length, width):

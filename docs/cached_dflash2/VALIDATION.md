@@ -1,10 +1,10 @@
 # 迁移验证记录
 
-日期：2026-11-04。以下为代码集成的本地验证记录；没有重新训练全量 ALLaVA。服务器验证记录在后续实际完成后补充。
+日期：2026-11-04。以下记录本地测试与服务器预检查；没有重新训练全量 ALLaVA，也没有完成新分支的在线推理验收。
 
 ## 已执行
 
-- `python scripts/test_cached_dflash2_cpu.py`：25 项通过。包括 FP32/BF16 full-vocab loss 与梯度参考、teacher 停止梯度、prefix 分母、epoch 覆盖、未来 target 特征零影响/零梯度、teacher-forced/native T1 分离、零初始化融合及其梯度、三种模式各两轮微型合成训练、导出、冻结 selector、中断续训与不中断权重逐元素一致、配置/缓存错误拒绝。
+- `python scripts/test_cached_dflash2_cpu.py`：26 项通过。包括 FP32/BF16 full-vocab loss 与梯度参考、teacher 停止梯度、prefix 分母、epoch 覆盖、未来 target 特征零影响/零梯度、teacher-forced/native T1 分离、零初始化融合及其梯度、三种模式各两轮微型合成训练、导出、冻结 selector、中断续训与不中断权重逐元素一致、配置/缓存错误拒绝，以及真实 vLLM int32 target IDs 与 int64 native-MTP sidecar 的兼容和浮点 ID 拒绝。
 - 既有 `test_resolve_mask_token_id.py` 的 7 项测试在隔离导入下通过，确认延迟加载预处理依赖后保留原 helper 的 monkeypatch 接口。
 - 同一测试集检查实际 runtime fusion/window 数学、全部 22 个 overlay 原始 hash、安装的 base/干净目录/篡改保护、dense/hybrid 启动配置、在线计数和完整输出差异定位。
 - `mypy --check-untyped-defs src/speculators/train/cached_dflash2 src/speculators/cli/train_cached_dflash2.py tests/unit/train/cached_dflash2`：19 个文件通过。
@@ -12,6 +12,14 @@
 - 新绘图工具读取历史两组完整的 2815 步日志，生成 PNG/PDF，并人工检查图片布局与坐标。文档中的两套历史曲线保持原归档内容，不是合成测试曲线。
 
 CPU 环境：Intel macOS、Python 3.12、PyTorch 2.2.2、NumPy 1.26.4。CPU attention 显式重复 KV heads；CUDA 分支仍用原生 `enable_gqa=True`。CPU runner 只加载本功能及轻量 provenance 模块，绕过无关的包级 Transformers 模型注册；不能把它称作完整安装包测试。
+
+## 服务器预检查
+
+在用户个人目录恢复了固定私有 vLLM 环境，独立 checkout 的 base commit 与全部 22 个 overlay 摘要检查通过。宿主机为 ARM64；只读复用基础 PyTorch 2.13.0+cu130 / CUDA 13.0，未修改共享基础环境。BF16 GPU 矩阵乘法通过，离线补齐依赖后的完整 `import speculators`、`import vllm` 通过；vLLM 实际导入路径指向已检查的私有 checkout。
+
+实际读取已有缓存时发现 target `ids` 是 int32、MTP sidecar `ids` 是 int64，因此修复了原先过严的 dtype 校验：只允许这两种整数类型并统一为 int64，保持逐 token 身份核对；合成 fixture 也改为匹配真实数据格式。
+
+服务器不通 PyPI，恢复时使用离线依赖，并修复了旧容器绝对链接和系统 site-packages 混用。当前宿主机 PyTorch/CUDA 不同于历史实验镜像，不能假定旧二进制扩展的所有 GPU 路径兼容。这里只完成导入、摘要与基础运算检查，未运行完整模型训练、GPU pytest 或在线生成；未启动常驻训练/推理任务。后续 GPU 验证需另行安排。
 
 ## 环境阻塞与未验证项目
 

@@ -48,7 +48,7 @@
 
 - cache 对齐、hash、prompt boundary 或 split 检查失败：修复数据来源/路径；不要关闭检查绕过。
 - `Resume provenance changed`：先比较具体字段。确需改配方就新建实验，不编辑旧 provenance 假装相同。
-- OOM：先核对实时空闲显存、模型常驻内存、KV 与 allocator 上限。别仅凭 GB300 总显存就增加全部参数；改容量配置需为所有对照重测。
+- OOM：先核对实时空闲显存、模型常驻内存、KV 与 allocator 上限。别仅凭 棒卡 总显存就增加全部参数；改容量配置需为所有对照重测。
 - runtime base/hash/import 路径失败：在正确私有 checkout 重建，不对任意 vLLM 强行应用。
 - 输出比较非零：保留逐条结果与首差位置，先做相同前缀诊断；不能以 AR 更高覆盖这个失败。
 
@@ -57,5 +57,7 @@
 支持的 Linux 开发环境运行 `python -m pytest tests/unit/train/cached_dflash2` 和仓库 quality checks。Intel Mac 可运行 `python scripts/test_cached_dflash2_cpu.py`，但它隔离掉无关 Transformers 模型导入；不能宣称检查了完整安装包或 CUDA。
 
 提交前检查源码、测试、配方、文档和生成物链接，按根目录规则签署 DCO。不要重新上传个人运行目录。修改 overlay 时应作为新 runtime 版本，记录 base/diff/hash，并重新做 GPU 验证；不能只更新 SHA 来消除失败。
+
+服务器预检查已完成导入、固定 runtime 摘要及 BF16 基础运算；真实缓存 int32 IDs 已兼容。当前没有由本次交付启动的常驻训练/推理任务。
 
 目前仍待完成：受支持环境中的完整 CLI/CUDA 迁移回归、D-MTP 跨卡输出差异定位、BF16 target 对照、独立训练 seed 和更完整状态等价验证。它们没有在本次代码交接中被自动提交为作业。

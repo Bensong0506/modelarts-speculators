@@ -143,6 +143,17 @@ class PipelineTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             resolve(["--config", str(path)])
 
+    def test_int32_target_ids_match_int64_native_sidecars_and_reject_floats(self):
+        row = json.loads((self.data / "manifest.json").read_text())[0]
+        loaded = load_row(row, True, 32)
+        self.assertEqual(loaded["ids"].dtype, torch.int64)
+        raw = torch.load(row["path"], weights_only=True)
+        self.assertEqual(raw["ids"].dtype, torch.int32)
+        raw["ids"] = raw["ids"].float()
+        torch.save(raw, row["path"])
+        with self.assertRaisesRegex(ValueError, "int32/int64"):
+            load_row(row, True, 32)
+
     def test_corrupt_durable_log_fails_instead_of_silently_losing_history(self):
         (self.root / "train.jsonl").write_text('{"step": 1}\n{"step": 1}\n')
         with self.assertRaisesRegex(ValueError, "duplicate"):

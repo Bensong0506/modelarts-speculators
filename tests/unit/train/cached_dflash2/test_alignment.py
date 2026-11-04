@@ -190,7 +190,7 @@ def make_fixture(dest):
         mtp = dest / f"mtp-{i}.pt"
         torch.save(
             {
-                "ids": ids,
+                "ids": ids.int(),
                 "features": torch.randn(32, 64).bfloat16(),
                 "teacher_hidden": torch.randn(32, 32).bfloat16(),
                 "prompt_length": 8,

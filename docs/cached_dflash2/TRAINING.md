@@ -43,13 +43,13 @@ Manifest 示例（实际文件为 JSON 数组）：
 
 Target `.pt` 使用 `torch.load(weights_only=True)`，包含：
 
-| key            | 形状/类型                           | 含义                                              |
-| -------------- | ----------------------------------- | ------------------------------------------------- |
-| ids            | `[L]`, int64                        | 同一图片、prompt 和蒸馏回答的完整 token 序列      |
-| features       | `[L, target_layer_count * H]`, BF16 | 选定 target 层的 collapsed hidden，非 HC 多流拼接 |
-| teacher_hidden | `[L, H]`, BF16                      | 目标 LM head 的输入；位置 i 用来预测 token i+1    |
-| prompt_length  | int                                 | assistant 区域起点，必须与 manifest 一致          |
-| image_sha256   | str                                 | 原图身份，必须与 manifest 一致                    |
+| key            | 形状/类型                           | 含义                                                             |
+| -------------- | ----------------------------------- | ---------------------------------------------------------------- |
+| ids            | `[L]`, int32 或 int64               | 同一图片、prompt 和蒸馏回答的完整 token 序列；加载后统一为 int64 |
+| features       | `[L, target_layer_count * H]`, BF16 | 选定 target 层的 collapsed hidden，非 HC 多流拼接                |
+| teacher_hidden | `[L, H]`, BF16                      | 目标 LM head 的输入；位置 i 用来预测 token i+1                   |
+| prompt_length  | int                                 | assistant 区域起点，必须与 manifest 一致                         |
+| image_sha256   | str                                 | 原图身份，必须与 manifest 一致                                   |
 
 MTP `.pt` 必须含相同 `ids`、`image_sha256`，以及：
 
