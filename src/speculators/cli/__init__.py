@@ -16,6 +16,7 @@ from speculators.cli.prepare_data import prepare_data
 from speculators.cli.regenerate_responses import regenerate_responses
 from speculators.cli.stitch import stitch_command
 from speculators.cli.train import train_command
+from speculators.cli.train_cached_dflash2 import train_cached_dflash2
 
 __all__ = ["app"]
 
@@ -57,4 +58,14 @@ app.command(
         "help_option_names": [],
     },
 )(train_command)
+app.command(
+    name="train-cached-dflash2",
+    rich_help_panel="Pipeline",
+    context_settings={
+        "allow_extra_args": True,
+        "allow_interspersed_args": False,
+        "ignore_unknown_options": True,
+        "help_option_names": [],
+    },
+)(train_cached_dflash2)
 app.command(rich_help_panel="Tools")(convert)

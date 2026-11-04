@@ -63,6 +63,7 @@ base = [
     "numpy>=2.0.0,<=2.5.4",
     "openai>=2.0.0",
     "protobuf",
+    "pyyaml",
     "psutil",
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
@@ -118,6 +119,7 @@ dev = [
     # benchmarking (scripts/benchmark.py statistics and report charts)
     "scipy",
     "plotly",
+    "matplotlib", # cached DFlash2 loss figures
 
     # code quality
     "mypy~=2.1.0",
@@ -174,7 +176,7 @@ ignore_missing_imports=true
 [tool.ruff]
 line-length = 88
 indent-width = 4
-exclude = ["build", "dist", "env", ".venv", "output"]
+exclude = ["build", "dist", "env", ".venv", "output", "integrations/vllm_dmtp/overlay"]
 
 [tool.ruff.format]
 quote-style = "double"

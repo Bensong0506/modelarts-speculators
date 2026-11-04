@@ -1,0 +1,126 @@
+{
+  "base_commit": "bbf5893213eff1e1dc7bbe76ce410b31eaca1507",
+  "files": [
+    {
+      "path": "tests/config/test_speculative_draft_hf_overrides.py",
+      "sha256": "3d2a24905c7c213d62e2c7878dcd40fbf7e635a842bc7accab57537d12604b73",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "tests/models/qwen4_exp/test_config.py",
+      "sha256": "9a0da9c8dce9e275b0c546e7df29802db57dd4609a9023c415a45414b148d41f",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "tests/v1/spec_decode/test_dflash2.py",
+      "sha256": "90663570605a0915ce50546441c1e4a55eeae42292079da574007ffac146d81e",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "tests/v1/spec_decode/test_dflash_prepare_inputs.py",
+      "sha256": "a3ad4c6ab74ef4d0841a92567374bbceb5c4fe8368c4dee0bf87c5d483c4835e",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/config/speculative.py",
+      "sha256": "3e28274e415894af0ed7b954078104917cef390fed8ca7bc44997857e8d7d5f7",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/model_executor/models/config.py",
+      "sha256": "85b30b93f4377c8dbc5577cf9108cfd19e3435dd229a82f6b10bf51557192847",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/model_executor/models/qwen3_dmtp.py",
+      "sha256": "78bad0c3ea0068838fd05d680b6e857eb9e33716cce4dd2956adfee03b3e6989",
+      "source": "local residual-fusion update; SHA256 matches final server online audit"
+    },
+    {
+      "path": "vllm/model_executor/models/registry.py",
+      "sha256": "1e0daed9853663dfc9cb9ab5536fd5dd32080b34f12326b5ddb9bd60a4c62aef",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/models/qwen4_exp/nvidia/model.py",
+      "sha256": "1b487f369aba30a13dfc380de727dd78206dfe1ad096c9d3c58710ecfb40a07f",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/transformers_utils/configs/eagle.py",
+      "sha256": "8c8dd23a0ff1ae614f920e2a1dcbc0b1889e7d48c53b5cdd54e826446813a799",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/cudagraph_utils.py",
+      "sha256": "81f23b9be992143b8f1a4e8bb6dec5ac525f1236d00b95da19a3467f230e932e",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/model_runner.py",
+      "sha256": "0514e3c6359d4e895cfba42f66f8f3b3065b183661832b803f9926dca0e2ff03",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/__init__.py",
+      "sha256": "4912edce06ffcfbdd8d24d5748e7a536e83b7e326e1133e6520cd2463263d66b",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dflash/speculator.py",
+      "sha256": "f9697f301a1d60e0e4a5b08bd450421588aaa1ee2b7a88354d867c5d0b848d59",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dflash2/long_gdn_fastpath.py",
+      "sha256": "ce75e44172be8b6d15eff2eb13147c4fd930d4a8751feb31462c6cc2d3300682",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dflash2/long_ngram.py",
+      "sha256": "93c04c6308f6e343ea79009ea85df2d41921ad325f6a0892ffda0cedea888188",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dflash2/ngram.py",
+      "sha256": "1cf79587979fa998f21c272a19114569dec6f441f205df36d4deefe7793cbd64",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dflash2/speculator.py",
+      "sha256": "53d5ab9106405749a967f5fdf1fe8328316c1598bc0b99d9aecf024731143a03",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dmtp/__init__.py",
+      "sha256": "e3c55cbb0d7a8bd47df6f3378835644645f5d3bc89b45793b5d5a02d013e5c58",
+      "source": "downloaded server overlay archive"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dmtp/config.py",
+      "sha256": "64e223d9f6161c2aa75b55f450b8fd8f0c56797709f390d9e90f14907b775bc4",
+      "source": "local residual-fusion update; SHA256 matches final server online audit"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dmtp/fusion.py",
+      "sha256": "8fd01ff9c1fa9a61cd142c8bd98814827b42be73192ada7ee17397181747dcad",
+      "source": "local residual-fusion update; SHA256 matches final server online audit"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dmtp/speculator.py",
+      "sha256": "063b05efd88803e0158b627293ee38e9d5dcb749c52834aaeaeaa37e32ab31c0",
+      "source": "downloaded server overlay archive"
+    }
+  ],
+  "final_online_source_hashes": {
+    "v1/worker/gpu/model_runner.py": "0514e3c6359d4e895cfba42f66f8f3b3065b183661832b803f9926dca0e2ff03",
+    "model_executor/models/qwen3_dmtp.py": "78bad0c3ea0068838fd05d680b6e857eb9e33716cce4dd2956adfee03b3e6989",
+    "v1/worker/gpu/spec_decode/dmtp/speculator.py": "063b05efd88803e0158b627293ee38e9d5dcb749c52834aaeaeaa37e32ab31c0",
+    "v1/worker/gpu/spec_decode/dmtp/config.py": "64e223d9f6161c2aa75b55f450b8fd8f0c56797709f390d9e90f14907b775bc4",
+    "v1/worker/gpu/spec_decode/dmtp/fusion.py": "8fd01ff9c1fa9a61cd142c8bd98814827b42be73192ada7ee17397181747dcad",
+    "config/speculative.py": "3e28274e415894af0ed7b954078104917cef390fed8ca7bc44997857e8d7d5f7",
+    "models/qwen4_exp/nvidia/model.py": "1b487f369aba30a13dfc380de727dd78206dfe1ad096c9d3c58710ecfb40a07f",
+    "v1/worker/gpu/spec_decode/dflash2/speculator.py": "53d5ab9106405749a967f5fdf1fe8328316c1598bc0b99d9aecf024731143a03",
+    "v1/worker/gpu/spec_decode/dflash/speculator.py": "f9697f301a1d60e0e4a5b08bd450421588aaa1ee2b7a88354d867c5d0b848d59"
+  }
+}

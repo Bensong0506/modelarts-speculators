@@ -7,10 +7,27 @@ import sys
 import warnings
 from pathlib import Path
 
-from speculators.data_generation.preprocessing import get_tokenizer, load_processor
 from speculators.provenance import atomic_write, find_repo_root, git_diff, git_sha
 
 logger = logging.getLogger("speculators")
+
+
+def get_tokenizer(*args, **kwargs):
+    """Keep this helper patchable; provenance does not need Transformers."""
+    from speculators.data_generation.preprocessing import (  # noqa: PLC0415
+        get_tokenizer as resolve_tokenizer,
+    )
+
+    return resolve_tokenizer(*args, **kwargs)
+
+
+def load_processor(*args, **kwargs):
+    """Load preprocessing only when token resolution actually needs it."""
+    from speculators.data_generation.preprocessing import (  # noqa: PLC0415
+        load_processor as resolve_processor,
+    )
+
+    return resolve_processor(*args, **kwargs)
 
 
 def resolve_mask_token_id(

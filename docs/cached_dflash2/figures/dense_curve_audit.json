@@ -1,0 +1,36 @@
+{
+  "smoothing": "trailing mean, 100 steps, min_periods=1",
+  "missing_or_duplicate_steps": false,
+  "nonfinite_losses": false,
+  "validation_loss_logged": false,
+  "runs": {
+    "ce-1e5": {
+      "rows": 2815,
+      "last_step": 2815,
+      "last_epoch": 5,
+      "images_seen": 89990,
+      "train_jsonl_sha256": "fc6e9f6760c87d385d218c0c0cc1850efbb7d853360504ce11ceb52c55129ec3"
+    },
+    "ce-3e5": {
+      "rows": 2815,
+      "last_step": 2815,
+      "last_epoch": 5,
+      "images_seen": 89990,
+      "train_jsonl_sha256": "89175a358ad874d20f31dcd32cd272c1b322b5633ca1537921b813ef48e7499d"
+    },
+    "kl-1e5": {
+      "rows": 2815,
+      "last_step": 2815,
+      "last_epoch": 5,
+      "images_seen": 89990,
+      "train_jsonl_sha256": "e87dfa1362afda540a05619cfe7bbc66a86d48f17ab210fc3b986e5e97b8d94d"
+    },
+    "kl-3e5": {
+      "rows": 2815,
+      "last_step": 2815,
+      "last_epoch": 5,
+      "images_seen": 89990,
+      "train_jsonl_sha256": "3a52dee632989dc09584eb9ab5880c10110f7af7288da6fa9ae62ac05b754fc6"
+    }
+  }
+}

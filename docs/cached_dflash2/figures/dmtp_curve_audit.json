@@ -1,0 +1,22 @@
+{
+  "smoothing": "trailing mean, 100 steps, min_periods=1",
+  "missing_or_duplicate_steps": false,
+  "nonfinite_losses": false,
+  "validation_loss_logged": false,
+  "runs": {
+    "fusion": {
+      "rows": 2815,
+      "last_step": 2815,
+      "last_epoch": 5,
+      "images_seen": 89990,
+      "train_jsonl_sha256": "91cb1f73e340bff66cf4c8cecc611a7ee5adcfaf0abb9e7328748dc5b4f7da0f"
+    },
+    "token": {
+      "rows": 2815,
+      "last_step": 2815,
+      "last_epoch": 5,
+      "images_seen": 89990,
+      "train_jsonl_sha256": "ee4af46d3597942de14a02c78d23d730023c66b968b5b5f5f913e020141122a1"
+    }
+  }
+}

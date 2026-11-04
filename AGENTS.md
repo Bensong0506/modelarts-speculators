@@ -1,5 +1,9 @@
 # Speculators — Agent Guide
 
+## Cached ALLaVA / D-MTP workflows
+
+For `train-cached-dflash2`, read [the colleague AI handoff](docs/cached_dflash2/AI_HANDOFF.md), then its training and vLLM inference guides. This is a separate audited cache pipeline; the hybrid runtime requires the pinned private vLLM overlay. Historical acceptance numbers are not new results from this branch, and unresolved output differences must remain visible.
+
 ## Pull requests
 
 Read [CONTRIBUTING.md](./CONTRIBUTING.md) before contributing. Install the git hooks once per clone, after installing the `[dev]` extras:
