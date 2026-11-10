@@ -32,6 +32,23 @@ comparison = load_script("compare_cached_dflash2_outputs")
 
 
 class ToolTests(unittest.TestCase):
+    def test_target_copy_requires_every_indexed_shard(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "config.json").write_text("{}")
+            index = root / "model.safetensors.index.json"
+            index.write_text(
+                json.dumps(
+                    {"weight_map": {"a": "part1.safetensors", "b": "part2.safetensors"}}
+                )
+            )
+            (root / "part1.safetensors").write_bytes(b"first")
+            with self.assertRaisesRegex(ValueError, "missing=.*part2"):
+                serve.target_checkpoint_files(root)
+            (root / "part2.safetensors").write_bytes(b"second")
+            self.assertEqual(len(serve.target_checkpoint_files(root)), 4)
+            self.assertIn(index, serve.target_checkpoint_files(root))
+
     def test_bundle_matches_all_original_runtime_hashes(self):
         self.assertEqual(len(runtime.manifest()["files"]), 22)
 

@@ -19,6 +19,8 @@ speculators train-cached-dflash2 --help
 2. `shared.pt`：字典 `embed_tokens.weight` / `lm_head.weight`，形状均为 `[vocab_size, hidden_size]`；从同一目标权重提取并冻结。
 3. manifest JSON 数组，以及它指向的 target cache；D-MTP 还需要 native MTP sidecar。支持相对 manifest 的缓存路径，便于迁移。
 
+报告中应注明初始 checkpoint 的训练历史和权重摘要。`epoch-00` 表示本轮起点：如果输入已经经过 ALLaVA 增训，后续指标衡量的是继续增训的变化，不能把它称为相对未增训原始 DFlash2 的总收益。
+
 这不是直接读取图片 JSONL 的 SFT。预处理顺序为：按图像身份划分 train/val/test → 目标 Qwen 读取图片和问题、蒸馏回答 → 同一 tokenizer/chat template/图像预处理下采集 target hidden → D-MTP 另外采集 native causal MTP hidden/token → 合并对齐 manifest。既有采集程序在[历史归档 source](https://github.com/Bensong0506/speculators-wenxuan/tree/bb5a1b1a4dbf97d4cd968f011a97fb458f229dc7/research/allava20k_finetune_20261104/02_dflash2_dmtp/source/experiments)中；本命令消费其缓存，不会自动下载数据或调用其他服务。
 
 ## 文件格式

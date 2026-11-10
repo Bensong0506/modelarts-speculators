@@ -2,6 +2,8 @@
 
 这是两套历史实验的包内训练实现。统一入口为 `speculators train-cached-dflash2`，三种模式是 `dense`、`token`、`fusion`，共用缓存读取、冻结 head 的 loss、验证、续训和导出。原有 `speculators train` 行为保持兼容。
 
+这里的 `dense` 指 DFlash2 草稿模型；Qwen 目标模型提供蒸馏回答和缓存特征，权重保持冻结。本命令不对 Qwen 本体做多模态 SFT。
+
 这条路径用于已有 DFlash2 HF checkpoint 和经过图像身份/时序审计的 target/MTP 缓存。它保留实验的 FP32 卷积累加、frozen selector 等计算约定，因此使用独立的 checkpoint 兼容 backbone；它没有把这些实验改成通用 Trainer 的另一套默认配置，也没有注册成普通 `mtp` 预训练。**D-MTP 里的原生 MTP 冻结，训练的是 DFlash2 后六位及可选融合层。**
 
 - [训练与数据契约](TRAINING.md)

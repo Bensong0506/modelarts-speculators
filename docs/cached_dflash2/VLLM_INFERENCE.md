@@ -7,6 +7,7 @@
 - 私有基线 commit：`bbf5893213eff1e1dc7bbe76ce410b31eaca1507`。
 - 历史环境标识：vLLM 0.31.0、PyTorch `2.14.0a0+b2c75dd062.nv26.09`、CUDA 13.4、棒卡。
 - 版本字符串相同不代表私有模型代码/编译扩展 ABI 相同。需取得支持该 Qwen target 的原私有基线与配套 CUDA 环境；这个仓库的 overlay 不是完整 vLLM 分发包。
+- 固定 Git checkout 还需要配套 wheel 的编译产物和 vendored 文件（例如 `vllm/third_party/flashmla/flash_mla_interface.py`）；只复制 `.so` 不够。使用同一构建的文件，并额外记录其摘要。普通 `import vllm` 通过并不代表量化模块及模型启动已通过。
 - 本适配器仅支持该基线的 `Qwen4ExpMTP` target、V2 model runner、单 GPU（TP/PP/DP/DCP/PCP 均 1）、greedy draft、固定七候选。LoRA、adaptive verification、EPLB、watermark、n-gram 叠加不支持。
 
 从已有的正确私有 vLLM 源码创建独立 checkout；不要把 overlay 覆盖到共享环境或任意上游版本。
@@ -91,6 +92,8 @@ print(response.choices[0].message.content)
 
 `--dtype bfloat16` 是计算 dtype，**不会把 FP8 目标权重转换成完整 BF16 目标**。权重精度以 target checkpoint 与 provenance 为准。普通 HTTP 返回文本并不能提供这次实验的完整接受计数；接受率对照用下面的离线 LLM 评测入口。
 
+目标权重须完整复制后再启动。工具会核对 safetensors 分片索引，并使用四个读取线程计算全部权重及索引的 SHA-256；这些校验在模型初始化之前完成。
+
 ## 接受率与输出一致性
 
 Prompt manifest 为 JSONL：每行至少 `id`, `question`, `image_sha256`，再提供 `image_path`，或者原实验的 `image_tar`, `image_offset`, `image_size`。路径可相对 manifest；程序读取原始图像 bytes 后核对 SHA-256。不能用训练集做最终测试，需另外审计与 train/val 的图像交集。
@@ -114,6 +117,8 @@ CUDA_VISIBLE_DEVICES=1 python scripts/evaluate_cached_dflash2.py \
 ```
 
 Dense/token/fusion 必须使用同一 prompts、target、精度、采样、并发上限、KV 容量、kernel、输出长度及 graph 模式。三次同卡重复不等于跨卡轮换，也不等于独立训练 seed。完整对照应再轮换硬件，并保存 GPU 身份。
+
+长评测可加 `--progress`，在日志里显示已完成的请求数量。它只影响进度显示，不改变推理配置；最终指标仍以完成后的 `summary.json` 为准。
 
 输出 `requests.jsonl` 保留 token IDs 和接受计数；`summary.json` 的在线 AR 是 accepted/proposed，AL 是 `1 + accepted/verification_steps`。缺少底层计数会报错，不会以独立 token accuracy 冒充接受率。吞吐包含 multimodal prefill 和 decode，排除模型加载、读图和 warmup；当前不按吞吐选配方。
 

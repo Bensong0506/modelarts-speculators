@@ -83,6 +83,9 @@ def main():  # noqa: C901
     parser.add_argument("--max-tokens", type=int, default=256)
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--graph", action="store_true")
+    parser.add_argument(
+        "--progress", action="store_true", help="Log completed requests"
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     if (
@@ -178,7 +181,7 @@ def main():  # noqa: C901
         outputs = llm.generate(
             inputs,
             SamplingParams(temperature=0, max_tokens=args.max_tokens, seed=280),
-            use_tqdm=False,
+            use_tqdm=args.progress,
         )
         elapsed = time.monotonic() - start
         records = []

@@ -1,6 +1,7 @@
 """Build and optionally launch the pinned dense/D-MTP vLLM OpenAI server."""
 
 import argparse
+import concurrent.futures
 import datetime
 import importlib.util
 import json
@@ -110,6 +111,25 @@ def command(args):
     return result
 
 
+def target_checkpoint_files(target):
+    """Reject an incomplete sharded copy before recording or loading weights."""
+    target = Path(target)
+    files = [target / "config.json", *sorted(target.glob("*.safetensors"))]
+    if not files[0].is_file() or len(files) == 1:
+        raise ValueError("Target must be a local config + safetensors checkpoint")
+    index = target / "model.safetensors.index.json"
+    if index.is_file():
+        shards = set(json.loads(index.read_text())["weight_map"].values())
+        available = {p.name for p in files[1:]}
+        if shards != available:
+            raise ValueError(
+                f"Target shard index mismatch: missing={sorted(shards - available)}, "
+                f"extra={sorted(available - shards)}"
+            )
+        files.insert(1, index)
+    return files
+
+
 def prepare_runtime(args, argv):
     """Check the installed fork and save provenance before engine creation."""
     audit = check_runtime(args.runtime_root)
@@ -123,15 +143,15 @@ def prepare_runtime(args, argv):
         raise ValueError(
             "This Python does not import the checked private vLLM checkout"
         )
+    checkpoint_files = target_checkpoint_files(args.target)
     args.provenance_dir.mkdir(parents=True, exist_ok=False)
-    checkpoint_files = [
-        args.target / "config.json",
-        *sorted(args.target.glob("*.safetensors")),
-    ]
-    if not checkpoint_files[0].is_file() or len(checkpoint_files) == 1:
-        raise ValueError("Target must be a local config + safetensors checkpoint")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        hashes = list(pool.map(sha256, checkpoint_files))
     (args.provenance_dir / "checkpoint_sha256.txt").write_text(
-        "".join(f"{sha256(p)}  {p.name}\n" for p in checkpoint_files)
+        "".join(
+            f"{digest}  {path.name}\n"
+            for path, digest in zip(checkpoint_files, hashes, strict=True)
+        )
     )
     if args.draft:
         (args.provenance_dir / "drafter_checkpoint_sha256.txt").write_text(
