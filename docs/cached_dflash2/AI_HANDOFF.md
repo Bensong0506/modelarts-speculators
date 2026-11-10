@@ -6,6 +6,8 @@
 
 **最新已完成记录：[2026-11-10 同设置 D-MTP 训练与 100 图逐轮在线对照](results/allava_dmtp_20261110/README.md)。** 包含两组五轮实跑、同预算 dense 参照、逐步 loss、18 次在线计数、曲线、脱敏命令/权重摘要以及 CPU 复核入口。第五轮 fusion 相比 dense 为 +0.446545 个百分点 AR、+0.031258 AL；仅单 seed、100 验证图，输出等价仍未通过。不要把该归档命令自动当作新任务执行。
 
+**内网推理代码交付：[完整 vLLM D-MTP patch](../../integrations/vllm_dmtp/patches/README.md)。** 包含 22 个文件（含 8 个新增文件），附真实 base、摘要及 `git apply` 命令，已实际应用并核对与实跑 overlay 一致。不能用历史日志里的 tracked-only `vllm.patch` 替代完整安装；也不能应用到任意上游 vLLM。
+
 **接内网业务数据时，先完整阅读 [业务数据训练交接](BUSINESS_DATA.md)。** 其中给出 manifest/target cache/shared 的字段与形状、数据来源和 split 审计、业务 YAML、`--check-data`、独立 3 步 pilot、正式五轮训练、恢复与验收命令。已经做好兼容缓存时可以复用训练主体；只有图片/prompt/answer 或另一种格式的 Speculators 缓存时不能直接开训。尤其核对不足 16 tokens 的回答、多轮监督边界、业务实体隔离，以及 `--check-data` 不覆盖的目标来源/权重加载检查。
 
 这里没有数据、模型权重、SSH 配置、密钥或运行中的训练任务。实际目录、GPU 分配及 job 生命周期由操作者在自己的环境提供。先核对当前状态，再执行其本轮明确授权的工作；不要自动启动旧任务、停止别人的进程或改共享环境。

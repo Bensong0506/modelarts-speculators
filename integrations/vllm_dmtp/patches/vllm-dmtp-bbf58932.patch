@@ -1,0 +1,2181 @@
+diff --git a/tests/config/test_speculative_draft_hf_overrides.py b/tests/config/test_speculative_draft_hf_overrides.py
+index e7014faa47d01ba8f1b7c17e9d32bb454a18a7bb..10d2f89a0a4381b6475eb9f5f22519fa6e9e3278 100644
+--- a/tests/config/test_speculative_draft_hf_overrides.py
++++ b/tests/config/test_speculative_draft_hf_overrides.py
+@@ -48,11 +48,14 @@ def test_none_overrides_fall_back_to_arch_mapping():
+ 
+ 
+ def _make_speculative_config(
+-    hf_kwargs: dict, architecture: str, **speculative_kwargs
++    hf_kwargs: dict, architecture: str, model_path: str = "draft", **speculative_kwargs
+ ) -> SpeculativeConfig:
+     hf_config = SpeculativeConfig.hf_config_override(_make_hf_config(**hf_kwargs))
+     draft = MagicMock(
+-        hf_config=hf_config, architectures=hf_config.architectures, max_model_len=128
++        model=model_path,
++        hf_config=hf_config,
++        architectures=hf_config.architectures,
++        max_model_len=128,
+     )
+     draft.registry.inspect_model_cls.return_value = (None, architecture)
+     target = MagicMock(max_model_len=128, quantization=None, hf_overrides={})
+@@ -60,13 +63,28 @@ def _make_speculative_config(
+ 
+     with patch("vllm.config.speculative.ModelConfig", return_value=draft):
+         return SpeculativeConfig(
+-            model="draft",
++            model=model_path,
+             **speculative_kwargs,
+             target_model_config=target,
+             target_parallel_config=ParallelConfig(),
+         )
+ 
+ 
++@pytest.mark.cpu_test
++@pytest.mark.parametrize("parent", ["dflash2", "eagle-run", "eagle3", "dspark"])
++def test_explicit_mtp_is_not_reclassified_by_a_parent_directory(parent):
++    """A native checkpoint may live inside an experiment named for another method."""
++    config = _make_speculative_config(
++        dict(model_type="qwen4_exp_text", mtp_num_hidden_layers=1, hc_count=4),
++        "Qwen4ExpMTP",
++        model_path=f"/private/{parent}/models/Qwen3.8-Flash-Next-FP8",
++        method="mtp",
++        num_speculative_tokens=1,
++    )
++    assert config.method == "mtp"
++    assert config.draft_model_config.hf_config.architectures == ["Qwen4ExpMTP"]
++
++
+ @pytest.mark.cpu_test
+ @pytest.mark.parametrize(
+     ("hf_kwargs", "n_predict", "architecture"),
+diff --git a/tests/models/qwen4_exp/test_config.py b/tests/models/qwen4_exp/test_config.py
+index 9d30365b8151d8655f7434258029d4ef619c0adb..7ffa1b26f857dd864a1b79987674ba86623a3236 100644
+--- a/tests/models/qwen4_exp/test_config.py
++++ b/tests/models/qwen4_exp/test_config.py
+@@ -92,6 +92,89 @@ def test_qwen4_exp_mtp_returns_sample_and_multi_streams() -> None:
+     assert returned_multi_hidden is multi_hidden
+ 
+ 
++def test_dflash_aux_captures_completed_gr_layers_without_double_injection():
++    """Feature reads must include pending MLP output without changing target state."""
++    from vllm.models.qwen4_exp.nvidia.model import Qwen4ExpModel
++
++    def combine(hidden, block, injection):
++        if block is None:
++            return hidden
++        return (
++            hidden.unflatten(-1, (2, 4)) + block[:, None, :] * injection[:, :, None]
++        ).flatten(-2)
++
++    class Layer(torch.nn.Module):
++        ple = None
++
++        def __init__(self, value):
++            super().__init__()
++            self.value = value
++            self.mlp_hyper_connection = SimpleNamespace(combine=combine)
++
++        def forward(self, hidden_states, prev_block_output, prev_injection, **kw):
++            hidden = combine(hidden_states, prev_block_output, prev_injection)
++            return (
++                hidden,
++                torch.full((hidden.shape[0], 4), self.value),
++                torch.tensor([[1.0, 2.0]]).expand(hidden.shape[0], -1),
++            )
++
++    model = object.__new__(Qwen4ExpModel)
++    torch.nn.Module.__init__(model)
++    model.config = SimpleNamespace(hc_count=2, hidden_size=4)
++    model.start_layer, model.end_layer = 0, 2
++    model.layers = torch.nn.ModuleList([Layer(1.0), Layer(2.0)])
++    model._mtp_hidden_buffer = None
++
++    def final_mix(hidden, block, injection):
++        multi = combine(hidden, block, injection)
++        return multi, multi.unflatten(-1, (2, 4)).mean(-2), None
++
++    model.hyper_connection_mixer = SimpleNamespace(combine_and_mix=final_mix)
++    inputs = torch.arange(8, dtype=torch.float32).reshape(2, 4)
++    with patch(
++        "vllm.models.qwen4_exp.nvidia.model.get_pp_group",
++        return_value=SimpleNamespace(is_first_rank=True, is_last_rank=True),
++    ):
++        model.aux_hidden_state_layers = ()
++        baseline = model(None, torch.arange(2), inputs_embeds=inputs)
++        model.aux_hidden_state_layers = (1, 2)
++        actual, features = model(None, torch.arange(2), inputs_embeds=inputs)
++
++    torch.testing.assert_close(actual, baseline, rtol=0, atol=0)
++    torch.testing.assert_close(features[0], inputs + 1.5)
++    torch.testing.assert_close(features[1], inputs + 4.5)
++
++
++@pytest.mark.parametrize("tp", [1, 2])
++def test_qwen4_exp_dflash2_only_allows_validated_parallel_layout(tp):
++    config = SimpleNamespace(
++        model_config=SimpleNamespace(
++            hf_text_config=_text_config(), multimodal_config=None
++        ),
++        parallel_config=SimpleNamespace(
++            tensor_parallel_size=tp,
++            pipeline_parallel_size=1,
++            prefill_context_parallel_size=1,
++            decode_context_parallel_size=1,
++            enable_dbo=False,
++            ubatch_size=1,
++        ),
++        speculative_config=SimpleNamespace(
++            method="dflash",
++            draft_model_config=SimpleNamespace(architectures=["DFlash2DraftModel"]),
++        ),
++    )
++    with patch.object(
++        Qwen3_5ForConditionalGenerationConfig, "verify_and_update_config"
++    ):
++        if tp == 1:
++            Qwen4ExpForConditionalGenerationConfig.verify_and_update_config(config)
++        else:
++            with pytest.raises(NotImplementedError, match="TP=PP=CP=1"):
++                Qwen4ExpForConditionalGenerationConfig.verify_and_update_config(config)
++
++
+ @spawn_new_process_for_each_test
+ @pytest.mark.parametrize("backend", ["amd", "nvidia"])
+ def test_qwen4_exp_mtp_remaps_mixed_precision_layer_indices(backend: str) -> None:
+diff --git a/tests/v1/spec_decode/test_dflash2.py b/tests/v1/spec_decode/test_dflash2.py
+index c508768b39b663f7a2ee5a7ff6b39f7ba58cc433..2c28df455c54f3edca11559e68c5f7e815cdfc65 100644
+--- a/tests/v1/spec_decode/test_dflash2.py
++++ b/tests/v1/spec_decode/test_dflash2.py
+@@ -15,6 +15,355 @@ from vllm.v1.worker.gpu.spec_decode.dflash.speculator import DFlashSpeculator
+ from vllm.v1.worker.gpu.spec_decode.dflash2.speculator import DFlash2Speculator
+ 
+ 
++def test_dmtp_architecture_survives_eagle_config_and_requires_hybrid_proposer():
++    from transformers import Qwen3Config
++
++    from vllm.transformers_utils.configs.eagle import EAGLEConfig
++    from vllm.v1.worker.gpu.spec_decode import init_speculator
++
++    config = EAGLEConfig(
++        Qwen3Config(architectures=["DMTPDFlash2DraftModel"]), method="dflash"
++    )
++    assert config.architectures == ["DMTPDFlash2DraftModel"]
++    with pytest.raises(ValueError, match="require additional_config.swx_dmtp"):
++        init_speculator(
++            SimpleNamespace(
++                additional_config={},
++                speculative_config=SimpleNamespace(
++                    method="dflash", draft_model_config=config
++                ),
++            ),
++            torch.device("cpu"),
++        )
++
++
++@pytest.mark.skipif(not current_platform.is_cuda(), reason="Requires CUDA")
++def test_dmtp_captures_prediction_hidden_before_hc_feedback_and_replays(monkeypatch):
++    from vllm.v1.worker.gpu.spec_decode.autoregressive.speculator import (
++        AutoRegressiveSpeculator,
++    )
++    from vllm.v1.worker.gpu.spec_decode.dmtp.speculator import FirstTokenMTP
++
++    # Native MTP returns a single-stream sample plus a distinct HC4 feedback.
++    # Fusion must capture exactly the former, including after graph replay.
++    sample = torch.arange(8 * 16, device="cuda", dtype=torch.float32).view(8, 16)
++    feedback = torch.full((8, 64), -99.0, device="cuda")
++    monkeypatch.setattr(
++        AutoRegressiveSpeculator,
++        "_run_model",
++        lambda *args, **kwargs: (sample, feedback),
++    )
++    spec = object.__new__(FirstTokenMTP)
++    spec.first_hidden = torch.zeros(4, 16, device="cuda")
++    spec.last_token_indices = torch.tensor([2, 6, 0, 0], device="cuda")
++    spec.input_buffers = SimpleNamespace(positions=torch.arange(8, device="cuda"))
++    spec.idx_mapping = torch.tensor([3, 1, 0, 0], device="cuda")
++    spec.temperature = torch.zeros(4, device="cuda")
++    spec.seeds = torch.zeros(4, dtype=torch.int64, device="cuda")
++    spec.current_draft_step = torch.tensor(0, device="cuda")
++    spec.draft_logits = None
++    spec.draft_tokens = torch.zeros(4, 1, dtype=torch.int64, device="cuda")
++    spec.hidden_states = torch.zeros_like(feedback)
++    spec.sample_src_positions = torch.zeros(4, dtype=torch.int64, device="cuda")
++    spec.pcp_manager = None
++    spec.sample_draft = lambda h, *args: h[:, 0].long()
++    spec._prefill(2, 8, None, None, None)
++    torch.testing.assert_close(spec.first_hidden[:2], sample[[2, 6]])
++    torch.testing.assert_close(spec.hidden_states[:2], feedback[[2, 6]])
++    graph = torch.cuda.CUDAGraph()
++    with torch.cuda.graph(graph):
++        spec._prefill(2, 8, None, None, None)
++    # A different acceptance length/request order changes the selected rows.
++    spec.last_token_indices[:2].copy_(torch.tensor([7, 1], device="cuda"))
++    sample.add_(1000)
++    graph.replay()
++    torch.testing.assert_close(spec.first_hidden[:2], sample[[7, 1]])
++    torch.testing.assert_close(spec.draft_tokens[:2, 0], sample[[7, 1], 0].long())
++
++
++@pytest.mark.parametrize("accepted", [1, 7, 15, 31, 32])
++def test_short_gdn_rebase_preserves_long_previous_acceptance_state(accepted):
++    from vllm.v1.worker.gpu.spec_decode.dflash2.long_gdn_fastpath import (
++        rebase_short_ssm_metadata,
++    )
++
++    state = torch.arange(64 * 6, dtype=torch.float32).view(64, 2, 3)
++    before = state.clone()
++    metadata = SimpleNamespace(
++        spec_state_indices_tensor=torch.arange(3, 35, dtype=torch.int32).view(1, 32),
++        num_accepted_tokens=torch.tensor([accepted], dtype=torch.int32),
++    )
++    result = rebase_short_ssm_metadata(metadata, state)
++    torch.testing.assert_close(state[3], before[3 + accepted - 1])
++    torch.testing.assert_close(state[:3], before[:3])
++    torch.testing.assert_close(state[4:], before[4:])
++    assert result.spec_state_indices_tensor.tolist() == [list(range(3, 11))]
++    assert result.num_accepted_tokens.tolist() == [1]
++    assert metadata.num_accepted_tokens.tolist() == [accepted]
++    assert metadata.spec_state_indices_tensor.shape == (1, 32)
++
++
++def test_long_adapter_pads_warmup_with_valid_ids_without_extending_neural_draft(
++    monkeypatch,
++):
++    from vllm.v1.worker.gpu.spec_decode.dflash2.long_ngram import (
++        LongNgramDFlash2Speculator,
++    )
++
++    neural = torch.arange(7).view(1, 7)
++    monkeypatch.setattr(DFlash2Speculator, "propose", lambda _self, _batch: neural)
++    spec = object.__new__(LongNgramDFlash2Speculator)
++    spec.long_output_tokens = torch.empty(1, 31, dtype=torch.int64)
++    spec.long_retrieved_tokens = torch.empty_like(spec.long_output_tokens)
++    spec.long_enabled = False
++    actual = spec.propose(SimpleNamespace(num_reqs=1))
++    assert spec.last_long_proposal_len == 7
++    torch.testing.assert_close(actual[:, :7], neural)
++    assert actual[:, 7:].tolist() == [[0] * 24]
++
++
++@pytest.mark.skipif(not current_platform.is_cuda(), reason="Requires CUDA")
++def test_long_ngram_batch_confirms_neural_prefix_without_mixing_request_slots():
++    from vllm.v1.worker.gpu.spec_decode.dflash2.long_ngram import (
++        LongConfirmedNgramLookup,
++    )
++
++    sequences = []
++    for row in range(3):
++        key = list(range(100 + row * 100, 112 + row * 100))
++        sequences.append(key + list(range(1000, 1040)) + key)
++    history = torch.zeros(3, 128, dtype=torch.int32, device="cuda")
++    for row, sequence in enumerate(sequences):
++        history[row, : len(sequence)] = torch.tensor(sequence, device="cuda")
++    mapping = torch.tensor([2, 0, 1], dtype=torch.int32, device="cuda")
++    lengths = torch.tensor([len(x) for x in sequences], device="cuda")
++    neural = torch.tensor([list(range(1000, 1007))] * 3, device="cuda")
++    neural[1, 0] = 9999
++    result = torch.zeros(3, 31, dtype=torch.int64, device="cuda")
++    lookup = LongConfirmedNgramLookup(128, "cuda", min_n=12, max_reqs=3)
++    matches = lookup.lookup_batch(history, lengths, mapping, result, neural)
++    assert [count for _, count in matches] == [31, 0, 31]
++    assert result[0].tolist() == sequences[2][12:43]
++    assert result[2].tolist() == sequences[1][12:43]
++
++
++@pytest.mark.skipif(not current_platform.is_cuda(), reason="Requires CUDA")
++@pytest.mark.parametrize("strided", [False, True, "transposed"])
++def test_batched_short_gdn_rebase_ignores_padding_and_captures_in_cuda_graph(strided):
++    from vllm.v1.worker.gpu.spec_decode.dflash2.long_gdn_fastpath import (
++        rebase_short_ssm_metadata,
++    )
++
++    state = torch.arange(96 * 6, device="cuda", dtype=torch.float32).view(96, 2, 3)
++    if strided:
++        state = torch.arange(96 * 12, device="cuda", dtype=torch.float32).view(
++            96, 4, 3
++        )[:, :2]
++    if strided == "transposed":
++        state = state.transpose(-1, -2)
++    before = state.clone()
++    indices = torch.cat(
++        [
++            torch.arange(96, device="cuda", dtype=torch.int32).view(3, 32),
++            torch.full((1, 32), -1, device="cuda", dtype=torch.int32),
++        ]
++    )
++    metadata = SimpleNamespace(
++        spec_state_indices_tensor=indices,
++        num_accepted_tokens=torch.tensor([31, 7, 15, 0], device="cuda"),
++    )
++    rebase_short_ssm_metadata(metadata, state)
++    graph = torch.cuda.CUDAGraph()
++    with torch.cuda.graph(graph):
++        result = rebase_short_ssm_metadata(metadata, state)
++    state.copy_(before)
++    graph.replay()
++    expected = before.clone()
++    expected[0] = before[30]
++    expected[32] = before[38]
++    expected[64] = before[78]
++    torch.testing.assert_close(state, expected)
++    assert result.spec_state_indices_tensor.shape == (4, 8)
++    assert result.num_accepted_tokens.tolist() == [1, 1, 1, 1]
++
++
++def test_long_scheduler_receives_individual_request_draft_lengths():
++    from vllm.v1.outputs import DraftTokenIds
++    from vllm.v1.worker.gpu.model_runner import GPUModelRunner
++
++    drafts = DraftTokenIds(["a", "b", "c"], [[-1] * 31 for _ in range(3)])
++    runner = SimpleNamespace(
++        draft_tokens_handler=SimpleNamespace(get_draft_tokens=lambda: drafts),
++        speculator=SimpleNamespace(last_long_proposal_lens=[7, 31, 15]),
++    )
++    actual = GPUModelRunner.take_draft_token_ids(runner)
++    assert actual.req_ids == ["a", "b", "c"]
++    assert [len(x) for x in actual.draft_token_ids] == [7, 31, 15]
++
++
++@pytest.mark.skipif(not current_platform.is_cuda(), reason="Requires CUDA")
++def test_long_batch_assembly_preserves_neural_rows_and_counts_actual_acceptance():
++    from vllm.v1.worker.gpu.spec_decode.dflash2.long_ngram import (
++        _assemble_long_drafts,
++    )
++
++    neural = torch.arange(21, device="cuda").view(3, 7)
++    retrieved = torch.arange(93, device="cuda").view(3, 31) + 100
++    output = torch.empty_like(retrieved)
++    status = torch.tensor([0, 64 + 15, 64 + 31], device="cuda")
++    boundaries = torch.tensor([0, 8, 24, 56], device="cuda")
++    sampled = torch.tensor([5, 1, 32], device="cuda")
++    stats = torch.zeros(4, 5, device="cuda", dtype=torch.int64)
++    _assemble_long_drafts[(3,)](
++        output, neural, retrieved, status, boundaries, sampled, stats, 31, True, 32
++    )
++    torch.testing.assert_close(output[0, :7], neural[0])
++    assert output[0, 7:].tolist() == [0] * 24
++    torch.testing.assert_close(output[1, :15], retrieved[1, :15])
++    assert output[1, 15:].tolist() == [0] * 16
++    torch.testing.assert_close(output[2], retrieved[2])
++    assert stats.tolist() == [
++        [1, 7, 4, 0, 0],
++        [1, 15, 0, 1, 0],
++        [1, 31, 31, 0, 1],
++        [0] * 5,
++    ]
++
++
++def test_long_context_graphs_do_not_capture_startup_cache_addresses(monkeypatch):
++    from vllm.v1.worker.gpu.spec_decode.dflash2.long_ngram import (
++        LongNgramDFlash2Speculator,
++    )
++
++    calls = []
++    monkeypatch.setattr(
++        DFlash2Speculator,
++        "_precompute_context_kv",
++        lambda _self, start, end, dummy_run=False: calls.append((start, end)),
++    )
++    spec = object.__new__(LongNgramDFlash2Speculator)
++    spec._long_context_graphs_ready = False
++    spec._long_context_graphs = {}
++    spec._precompute_context_kv(0, 8)
++    assert calls == [(0, 8)]
++    assert not spec._long_context_graphs
++
++
++@pytest.mark.skipif(not current_platform.is_cuda(), reason="Requires CUDA")
++@pytest.mark.parametrize(
++    ("known_future", "expected_count"), [(14, 0), (15, 15), (30, 15), (31, 31)]
++)
++def test_long_ngram_respects_confirmed_future_and_request_slot(
++    known_future, expected_count
++):
++    """Long proposals must neither read unconfirmed tokens nor assume slot zero."""
++    from vllm.v1.worker.gpu.spec_decode.dflash2.long_ngram import (
++        LongConfirmedNgramLookup,
++    )
++
++    key = list(range(100, 108))
++    sequence = key + list(range(1000, 1000 + known_future - len(key))) + key
++    history = torch.full((2, 128), 9999, dtype=torch.int32, device="cuda")
++    history[1, : len(sequence)] = torch.tensor(sequence, device="cuda")
++    lengths = torch.tensor([128, len(sequence)], dtype=torch.int32, device="cuda")
++    mapping = torch.tensor([1], dtype=torch.int32, device="cuda")
++    tokens = torch.zeros(31, dtype=torch.int64, device="cuda")
++    lookup = LongConfirmedNgramLookup(128, "cuda")
++    score, count = lookup.lookup(history, lengths, mapping, tokens)
++    assert count == expected_count
++    assert bool(score) == bool(expected_count)
++    if count:
++        assert tokens[:count].tolist() == sequence[8 : 8 + count]
++        assert score // 129 == 8
++    assert tokens[count:].tolist() == [-1] * (31 - count)
++
++
++@pytest.mark.skipif(not current_platform.is_cuda(), reason="Requires CUDA")
++@pytest.mark.parametrize(("steps", "max_n"), [(3, 8), (7, 8), (7, 16)])
++def test_confirmed_ngram_prefers_longer_then_recent_known_continuations(steps, max_n):
++    from vllm.v1.worker.gpu.spec_decode.dflash2.ngram import ConfirmedNgramLookup
++
++    torch.manual_seed(73)
++    lookup = ConfirmedNgramLookup(768, steps, "cuda", min_n=3, max_n=max_n)
++    cases = [
++        [1, 2, 3, *range(10, 10 + steps), 1, 2, 3],
++        [
++            11,
++            1,
++            2,
++            3,
++            *range(20, 20 + steps),
++            22,
++            1,
++            2,
++            3,
++            *range(30, 30 + steps),
++            11,
++            1,
++            2,
++            3,
++        ],
++        [1, 2, 3, *range(40, 40 + steps), 1, 2, 3, *range(50, 50 + steps), 1, 2, 3],
++        list(range(300)),
++        [1, 2],
++        [0] * 32,
++    ]
++    for _ in range(12):
++        case = torch.randint(0, 19, (530,)).tolist()
++        case[-max_n:] = case[254 : 254 + max_n]
++        cases.append(case)
++    mapping = torch.tensor([2], dtype=torch.int32, device="cuda")
++    history = torch.full((3, 768), -999, dtype=torch.int32, device="cuda")
++    lengths = torch.zeros(3, dtype=torch.int32, device="cuda")
++    tokens = torch.empty(steps, dtype=torch.int64, device="cuda")
++    for case in cases:
++        history[2, : len(case)] = torch.tensor(case, device="cuda")
++        lengths[2] = len(case)
++        matches = [
++            (n, end)
++            for n in range(3, max_n + 1)
++            for end in range(n, len(case) - steps + 1)
++            if case[end - n : end] == case[-n:]
++        ]
++        expected = max(matches, default=None)
++        score = lookup.lookup(history, lengths, mapping, tokens)
++        if expected is None:
++            assert score == 0
++        else:
++            n, end = expected
++            assert score == n * 769 + end
++            assert tokens.tolist() == case[end : end + steps]
++
++
++@pytest.mark.skipif(not current_platform.is_cuda(), reason="Requires CUDA")
++def test_ngram_point_mass_clears_neural_proposal_and_is_clearable_next_round():
++    from vllm.v1.worker.gpu.spec_decode.dflash2.ngram import ConfirmedNgramLookup
++
++    lookup = ConfirmedNgramLookup(32, 3, "cuda")
++    logits = torch.full((2, 3, 64), -float("inf"), device="cuda")
++    cached = torch.arange(4, device="cuda").repeat(2, 3, 1)
++    logits[:, :, :4] = 2.0
++    mapping = torch.tensor([1], dtype=torch.int32, device="cuda")
++    for ids in ([8, 9, 10], [30, 31, 32]):
++        tokens = torch.tensor(ids, device="cuda")
++        lookup.cache_proposal(logits, cached, tokens, mapping)
++        probs = logits[1].softmax(-1)
++        expected = torch.nn.functional.one_hot(tokens, 64).float()
++        torch.testing.assert_close(probs, expected, rtol=0, atol=0)
++        assert cached[1, :, 0].tolist() == ids
++    assert torch.all(logits[0, :, :4] == 2.0)
++    from vllm.v1.worker.gpu.spec_decode.dflash2.speculator import CandidateSampler
++
++    sampler = CandidateSampler(2, 3, 4, torch.device("cuda"))
++    sampler.cached_candidate_ids = cached
++    sampler.scores.zero_()
++    neural_ids = torch.arange(40, 44, device="cuda").repeat(1, 3, 1)
++    sampler._cache_draft_logits(neural_ids, 3, mapping.repeat(3), logits)
++    expected = torch.zeros(3, 64, device="cuda")
++    expected[:, 40:44] = 0.25
++    torch.testing.assert_close(logits[1].softmax(-1), expected, rtol=0, atol=0)
++
++
+ @pytest.mark.parametrize("block_size", [5, 8])
+ def test_grouped_conv_matches_reference(block_size: int):
+     torch.manual_seed(0)
+diff --git a/tests/v1/spec_decode/test_dflash_prepare_inputs.py b/tests/v1/spec_decode/test_dflash_prepare_inputs.py
+index 1d004c36677aa0fd92bf9beacd0c2d9881960508..24a1c6109adcc870a405377f2de062d31b827057 100644
+--- a/tests/v1/spec_decode/test_dflash_prepare_inputs.py
++++ b/tests/v1/spec_decode/test_dflash_prepare_inputs.py
+@@ -11,6 +11,7 @@ import torch
+ from vllm.v1.attention.backends.utils import PAD_SLOT_ID
+ from vllm.v1.worker.gpu.spec_decode.dflash.speculator import (
+     DFlashSpeculator,
++    prepare_dflash_inputs,
+ )
+ 
+ pytestmark = pytest.mark.skipif(
+@@ -26,11 +27,14 @@ def _run_prepare(
+     cp_size: int = 1,
+     cp_interleave: int = 1,
+     draft_dcp_size: int | None = None,
++    hybrid: bool = False,
++    accepted: int = 1,
+ ):
+     device = torch.device("cuda")
+     max_num_reqs = 4
+     max_num_tokens = 16
+-    num_speculative_steps = 3
++    num_speculative_steps = 6 if hybrid else 3
++    context_tokens = len(target_positions)
+ 
+     input_buffers = SimpleNamespace(
+         input_ids=torch.full((max_num_tokens,), -1, dtype=torch.int32, device=device),
+@@ -42,11 +46,13 @@ def _run_prepare(
+     )
+     input_batch = SimpleNamespace(
+         num_reqs=1,
+-        num_tokens=4,
+-        num_scheduled_tokens=np.array([4], dtype=np.int32),
++        num_tokens=context_tokens,
++        num_scheduled_tokens=np.array([context_tokens], dtype=np.int32),
+         seq_lens_cpu_upper_bound=torch.tensor([target_positions[-1] + 1]),
+         positions=torch.tensor(target_positions, dtype=torch.int64, device=device),
+-        query_start_loc=torch.tensor([0, 4], dtype=torch.int32, device=device),
++        query_start_loc=torch.tensor(
++            [0, context_tokens], dtype=torch.int32, device=device
++        ),
+         idx_mapping=torch.tensor([2], dtype=torch.int32, device=device),
+     )
+     query_slot_mapping = torch.full(
+@@ -90,8 +96,10 @@ def _run_prepare(
+         sample_idx_mapping=sample_idx_mapping,
+         temperature=temperature,
+         seeds=seeds,
+-        hidden_states=torch.zeros(4, 1, device=device),
++        hidden_states=torch.zeros(context_tokens, 1, device=device),
+         prepare_context_anchor=lambda *args: None,
++        _prepare_draft_inputs=prepare_dflash_inputs,
++        try_ngram_draft=lambda *args: False,
+         query_cudagraph_manager=None,
+         dp_size=1,
+         dp_rank=0,
+@@ -109,13 +117,20 @@ def _run_prepare(
+         ),
+         dcp_size=cp_size if draft_dcp_size is None else draft_dcp_size,
+         parallel_drafting_token_id=123,
+-        num_query_per_req=num_speculative_steps,
++        num_query_per_req=7 if hybrid else num_speculative_steps,
+         num_speculative_steps=num_speculative_steps,
+         max_num_reqs=max_num_reqs,
+         max_num_tokens=max_num_tokens,
+         max_model_len=128,
+-        sample_from_anchor=True,
++        sample_from_anchor=not hybrid,
+     )
++    if hybrid:
++        from vllm.v1.worker.gpu.spec_decode.dmtp.speculator import DMTPTail
++
++        draft.first_tokens = torch.tensor([77], dtype=torch.int64, device=device)
++        draft._prepare_draft_inputs = lambda *args: DMTPTail._prepare_draft_inputs(
++            draft, *args
++        )
+     with (
+         patch(
+             "vllm.v1.worker.gpu.spec_decode.dflash.speculator.dispatch_cg_and_sync_dp",
+@@ -130,8 +145,12 @@ def _run_prepare(
+             {},
+             draft.hidden_states,
+             None,
+-            torch.tensor([1], dtype=torch.int32, device=device),
+-            torch.tensor([2], dtype=torch.int32, device=device),
++            torch.tensor(
++                [accepted + 1 if hybrid else 1], dtype=torch.int32, device=device
++            ),
++            torch.tensor(
++                [7 - accepted if hybrid else 2], dtype=torch.int32, device=device
++            ),
+             last_sampled,
+             next_prefill_tokens,
+             input_temperature,
+@@ -212,3 +231,31 @@ def test_prepare_dflash_inputs_never_writes_the_null_block():
+         PAD_SLOT_ID,
+         PAD_SLOT_ID,
+     ]
++
++
++@pytest.mark.parametrize("accepted", range(8))
++def test_dmtp_rollback_replaces_scratch_kv_and_advances_only_query_rope(accepted):
++    """A rejected suffix must not become context or displace native T1."""
++    blocks = [0, 0, 7, 8, 9, 10, 11, 12]
++    out = _run_prepare(
++        target_positions=list(range(10, 18)),
++        block_table_values=blocks,
++        hybrid=True,
++        accepted=accepted,
++    )
++    pending = 11 + accepted
++    assert out.input_buffers.input_ids[:7].tolist() == [77] + [123] * 6
++    assert out.input_buffers.positions[:7].tolist() == list(
++        range(pending + 1, pending + 8)
++    )
++    assert out.sample_pos[:6].tolist() == list(range(pending + 2, pending + 8))
++    assert out.sample_indices[:6].tolist() == list(range(1, 7))
++    assert out.sample_idx_mapping[:6].tolist() == [2] * 6
++    assert out.query_slot_mapping[:7].tolist() == [
++        blocks[p // 4] * 4 + p % 4 for p in range(pending, pending + 7)
++    ]
++    assert out.context_slot_mapping[accepted + 1 : 8].tolist() == [PAD_SLOT_ID] * (
++        7 - accepted
++    )
++    assert out.context_positions[: accepted + 1].tolist() == list(range(10, pending))
++    assert out.query_slot_mapping[7:].tolist() == [PAD_SLOT_ID] * 9
+diff --git a/vllm/config/speculative.py b/vllm/config/speculative.py
+index dbec9fd743327435b9c9a67b6c747e2e1c3d6a78..aceb4ff8a2db45c6dc57e0ee33179c5d7238ed66 100644
+--- a/vllm/config/speculative.py
++++ b/vllm/config/speculative.py
+@@ -1325,18 +1325,26 @@ class SpeculativeConfig:
+                 # yuhuili/EAGLE3-LLaMA3.1-Instruct-8B
+                 # AngelSlim/Qwen3-8B_eagle3
+                 # deepseek-ai/dspark_qwen3_8b_block7
+-                elif "eagle-" in self.draft_model_config.model.lower():
++                elif (
++                    self.method != "mtp"
++                    and "eagle-" in self.draft_model_config.model.lower()
++                ):
+                     self.method = "eagle"
+-                elif "eagle3" in self.draft_model_config.model.lower():
++                elif (
++                    self.method != "mtp"
++                    and "eagle3" in self.draft_model_config.model.lower()
++                ):
+                     self.method = "eagle3"
+                 elif (
+-                    "dflash" in self.draft_model_config.model.lower()
++                    self.method != "mtp"
++                    and "dflash" in self.draft_model_config.model.lower()
+                     or "MuseGlimmerAssistantModel"
+                     in self.draft_model_config.architectures
+                 ):
+                     self.method = "dflash"
+                 elif (
+-                    "dspark" in self.draft_model_config.model.lower()
++                    self.method != "mtp"
++                    and "dspark" in self.draft_model_config.model.lower()
+                     or "Qwen3DSparkModel" in self.draft_model_config.architectures
+                     or _QWEN3_OMNI_DSPARK_ARCHITECTURE
+                     in self.draft_model_config.architectures
+diff --git a/vllm/model_executor/models/config.py b/vllm/model_executor/models/config.py
+index 3c87b061674e9af0f4370186f2c31db6c80bf7fd..b82efefff9336221a10ba1937a135c8217297f87 100644
+--- a/vllm/model_executor/models/config.py
++++ b/vllm/model_executor/models/config.py
+@@ -904,6 +904,22 @@ class Qwen4ExpForConditionalGenerationConfig(Qwen3_5ForConditionalGenerationConf
+         if multimodal_config is not None and multimodal_config.language_model_only:
+             _strip_qwen4_exp_mrope(vllm_config.model_config)
+         spec_config = vllm_config.speculative_config
++        if (
++            spec_config is not None
++            and spec_config.method == "dflash"
++            and "DFlash2DraftModel" in spec_config.draft_model_config.architectures
++        ):
++            if any(
++                getattr(parallel_config, name) != 1
++                for name in (
++                    "tensor_parallel_size",
++                    "pipeline_parallel_size",
++                    "prefill_context_parallel_size",
++                    "decode_context_parallel_size",
++                )
++            ):
++                raise NotImplementedError("Qwen4Exp DFlash2 requires TP=PP=CP=1")
++            return
+         if spec_config is not None and spec_config.method not in {
+             "mtp",
+             "ngram",
+@@ -911,7 +927,7 @@ class Qwen4ExpForConditionalGenerationConfig(Qwen3_5ForConditionalGenerationConf
+         }:
+             raise NotImplementedError(
+                 "Qwen4Exp speculative decoding supports only its native MTP "
+-                "checkpoint and linear n-gram proposers"
++                "checkpoint, DFlash2 at TP=PP=CP=1, and linear n-gram proposers"
+             )
+ 
+ 
+diff --git a/vllm/model_executor/models/qwen3_dmtp.py b/vllm/model_executor/models/qwen3_dmtp.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..c7d5eb29a177954861a90419921d9473fefcc67f
+--- /dev/null
++++ b/vllm/model_executor/models/qwen3_dmtp.py
+@@ -0,0 +1,54 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Checkpoint-compatible D-MTP tail: [native T1, MASK x 6]."""
++
++import torch
++
++from vllm.model_executor.models.qwen3_dflash2 import (
++    DFlash2Qwen3ForCausalLM,
++    DFlash2Qwen3Model,
++)
++from vllm.v1.worker.gpu.spec_decode.dmtp.config import validate_checkpoint
++from vllm.v1.worker.gpu.spec_decode.dmtp.fusion import AnchorFusion
++
++
++class DMTPDFlash2Model(DFlash2Qwen3Model):
++    def __init__(self, *, vllm_config, start_layer_id=0, prefix=""):
++        super().__init__(
++            vllm_config=vllm_config, start_layer_id=start_layer_id, prefix=prefix
++        )
++        validate_checkpoint(self.config)
++        spec = vllm_config.speculative_config
++        if spec.num_speculative_tokens != 6 or not vllm_config.additional_config.get(
++            "swx_dmtp"
++        ):
++            raise ValueError("A D-MTP export requires the hybrid proposer")
++        self.dmtp_mode = self.config.dmtp["mode"]
++        width = self.config.hidden_size
++        dtype = vllm_config.model_config.dtype
++        self.register_buffer(
++            "mtp_sample_hidden",
++            torch.zeros(vllm_config.scheduler_config.max_num_seqs, width, dtype=dtype),
++            persistent=False,
++        )
++        if self.dmtp_mode == "fusion":
++            self.anchor_fusion = AnchorFusion(
++                width, dtype, residual=self.config.dmtp.get("fusion_residual", False)
++            )
++
++    def embed_input_ids(self, input_ids):
++        embedding = super().embed_input_ids(input_ids)
++        if self.dmtp_mode == "token":
++            return embedding
++        blocks = embedding.reshape(-1, 7, self.config.hidden_size)
++        first = self.anchor_fusion(
++            blocks[:, 0], self.mtp_sample_hidden[: blocks.shape[0]]
++        )
++        return torch.cat([first[:, None], blocks[:, 1:]], dim=1).flatten(0, 1)
++
++
++class DMTPDFlash2ForCausalLM(DFlash2Qwen3ForCausalLM):
++    model_cls = DMTPDFlash2Model
++
++
++EntryClass = DMTPDFlash2ForCausalLM
+diff --git a/vllm/model_executor/models/registry.py b/vllm/model_executor/models/registry.py
+index b435d77ad7ae7832c4b976d9a3d61f6eacbddf03..6c2eb5ba09e83ff2173322ce9e1f9322829c81b6 100644
+--- a/vllm/model_executor/models/registry.py
++++ b/vllm/model_executor/models/registry.py
+@@ -635,6 +635,7 @@ _SPECULATIVE_DECODING_MODELS = {
+     "DFlashDraftModel": ("qwen3_dflash", "DFlashQwen3ForCausalLM"),
+     "LiLiCorrDraftModel": ("lilicorr", "LiLiCorrForCausalLM"),
+     "DFlash2DraftModel": ("qwen3_dflash2", "DFlash2Qwen3ForCausalLM"),
++    "DMTPDFlash2DraftModel": ("qwen3_dmtp", "DMTPDFlash2ForCausalLM"),
+     # Muse Glimmer's DFlash draft head, reusing the generic qwen3_dflash
+     # implementation. EAGLEConfig rewrites a dflash draft's architecture to
+     # DFlash{arch} unless it already starts or ends with "DFlash" (see
+diff --git a/vllm/models/qwen4_exp/nvidia/model.py b/vllm/models/qwen4_exp/nvidia/model.py
+index a7e24bcd2aa8e4f997bfdc134e978a3b032a4551..d4fc17183399dc236f2f88fd35c50be316df83c2 100644
+--- a/vllm/models/qwen4_exp/nvidia/model.py
++++ b/vllm/models/qwen4_exp/nvidia/model.py
+@@ -30,10 +30,12 @@ from vllm.model_executor.layers.vocab_parallel_embedding import (
+     VocabParallelEmbedding,
+ )
+ from vllm.model_executor.models.interfaces import (
++    EagleModelMixin,
+     HasInnerState,
+     IsHybrid,
+     MixtureOfExperts,
+     MultiModalEmbeddings,
++    SupportsEagle3,
+     SupportsLoRA,
+     SupportsMRoPE,
+     SupportsPP,
+@@ -382,7 +384,7 @@ class Qwen4ExpMixtureOfExperts(MixtureOfExperts):
+             moe.experts.update_expert_map()
+ 
+ 
+-class Qwen4ExpModel(nn.Module):
++class Qwen4ExpModel(nn.Module, EagleModelMixin):
+     hf_to_vllm_mapper = Qwen3_5Model.hf_to_vllm_mapper | _EXTRA_WEIGHTS_MAPPER
+ 
+     def __init__(self, *, vllm_config: VllmConfig, prefix: str = "") -> None:
+@@ -496,7 +498,7 @@ class Qwen4ExpModel(nn.Module):
+         query_start_loc: torch.Tensor | None = None,
+         ngram_context: torch.Tensor | None = None,
+         deepstack_input_embeds: IntermediateTensors | None = None,
+-    ) -> torch.Tensor | IntermediateTensors:
++    ) -> torch.Tensor | IntermediateTensors | tuple[torch.Tensor, list[torch.Tensor]]:
+         if get_pp_group().is_first_rank:
+             if inputs_embeds is not None:
+                 hidden_states = inputs_embeds
+@@ -510,6 +512,7 @@ class Qwen4ExpModel(nn.Module):
+                 raise ValueError("pipeline stage requires intermediate tensors")
+             hidden_states = intermediate_tensors["hidden_states"]
+ 
++        aux_hidden_states: list[torch.Tensor] = []
+         block_output = None
+         injection = None
+         last_layer = None
+@@ -566,6 +569,21 @@ class Qwen4ExpModel(nn.Module):
+                 injection = None
+                 hidden_states = hidden_states + deepstack_embed
+ 
++            if layer_idx + 1 in self.aux_hidden_state_layers:
++                # DFlash trains on completed decoder layers, averaged over GR
++                # streams. Read the pending MLP combine without changing the
++                # delayed state consumed by the next target layer.
++                completed = hidden_states
++                if block_output is not None:
++                    completed = layer.mlp_hyper_connection.combine(
++                        hidden_states, block_output, injection
++                    )
++                aux_hidden_states.append(
++                    completed.view(
++                        -1, self.config.hc_count, self.config.hidden_size
++                    ).mean(dim=1)
++                )
++
+         if not get_pp_group().is_last_rank:
+             # PP transports one tensor, not the delayed HC tuple. Materialize
+             # with the HC module that produced the pending injection.
+@@ -588,6 +606,8 @@ class Qwen4ExpModel(nn.Module):
+             # this tensor is needed by the final mixer regardless).
+             num_tokens = multi_hidden.shape[0]
+             self._mtp_hidden_buffer[:num_tokens].copy_(multi_hidden)
++        if aux_hidden_states:
++            return sample_hidden_states, aux_hidden_states
+         return sample_hidden_states
+ 
+     def load_weights(self, weights: Iterable[tuple[str, torch.Tensor]]) -> set[str]:
+@@ -637,6 +657,7 @@ class Qwen4ExpModel(nn.Module):
+ class Qwen4ExpForCausalLM(
+     nn.Module,
+     HasInnerState,
++    SupportsEagle3,
+     SupportsLoRA,
+     SupportsMRoPE,
+     SupportsPP,
+@@ -711,7 +732,7 @@ class Qwen4ExpForCausalLM(
+         intermediate_tensors: IntermediateTensors | None = None,
+         inputs_embeds: torch.Tensor | None = None,
+         **kwargs: object,
+-    ) -> torch.Tensor | IntermediateTensors:
++    ) -> torch.Tensor | IntermediateTensors | tuple[torch.Tensor, list[torch.Tensor]]:
+         # Forward kwargs unchanged so the runner's _maybe_add_ngram_kwargs
+         # path (query_start_loc / ngram_context) reaches Qwen4ExpModel.
+         return self.model(
+diff --git a/vllm/transformers_utils/configs/eagle.py b/vllm/transformers_utils/configs/eagle.py
+index 4a5efead72cded5e6f90cf286c994c74c8929397..7754adc78ee94a4ca10298908fc04c91b3ff246a 100644
+--- a/vllm/transformers_utils/configs/eagle.py
++++ b/vllm/transformers_utils/configs/eagle.py
+@@ -70,7 +70,7 @@ class EAGLEConfig(PreTrainedConfig):
+                 arch
+                 if arch.startswith("DFlash")
+                 or arch.endswith("DFlash")
+-                or arch == "LiLiCorrDraftModel"
++                or arch in ("LiLiCorrDraftModel", "DMTPDFlash2DraftModel")
+                 else f"DFlash{arch}"
+                 for arch in self.model.architectures
+             ]
+diff --git a/vllm/v1/worker/gpu/cudagraph_utils.py b/vllm/v1/worker/gpu/cudagraph_utils.py
+index fa1dc4a04bc1a349de0b4c5ecd76b2a48ab644ee..68dd14fa58d97a56e5e3270d3e2bb3a2a3fbaed9 100644
+--- a/vllm/v1/worker/gpu/cudagraph_utils.py
++++ b/vllm/v1/worker/gpu/cudagraph_utils.py
+@@ -267,7 +267,24 @@ class CudaGraphManager:
+         # draft tokens. The scheduler might use a smaller number so we need
+         # to capture graphs for all possible values during decode.
+         speculative_config = self.vllm_config.speculative_config
+-        if (
++        long_ngram = self.vllm_config.additional_config.get("swx_long_ngram")
++        if long_ngram:
++            decode_query_lens = sorted(
++                {
++                    8,
++                    1 + int(long_ngram.get("min_long_steps", 15)),
++                    self.decode_query_len,
++                }
++            )
++            capture_sizes = sorted(
++                set(capture_sizes)
++                | {
++                    width * requests
++                    for width in decode_query_lens
++                    for requests in range(1, self.max_num_reqs + 1)
++                }
++            )
++        elif (
+             speculative_config
+             and speculative_config.uses_dynamic_speculative_decoding()
+         ):
+@@ -461,7 +478,9 @@ class CudaGraphManager:
+                         assert desc not in self.graphs, (
+                             f"Graph already captured for {desc}"
+                         )
+-                        graph = torch.cuda.CUDAGraph()
++                        graph = torch.cuda.CUDAGraph(
++                            keep_graph=getattr(self, "keep_raw_graph", False)
++                        )
+                         # Sync offloader's copy stream before capture.
+                         # Ensure any pre-capture prefetches from offloader are complete.
+                         get_offloader().sync_prev_onload()
+diff --git a/vllm/v1/worker/gpu/model_runner.py b/vllm/v1/worker/gpu/model_runner.py
+index c2f29972a26c146d2794b9e61f34d35b5ed295a5..bd8ae4c5f3e8a0cfa75e2c981a04e63f9c6bae3e 100644
+--- a/vllm/v1/worker/gpu/model_runner.py
++++ b/vllm/v1/worker/gpu/model_runner.py
+@@ -273,7 +273,9 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+             if self.is_last_pp_rank:
+                 self.speculator = init_speculator(self.vllm_config, self.device)
+ 
+-            if self.speculative_config.method in (
++            if vllm_config.additional_config.get(
++                "swx_dmtp"
++            ) or self.speculative_config.method in (
+                 "eagle3",
+                 "dflash",
+                 "dspark",
+@@ -305,6 +307,8 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+             device=self.device,
+             num_prefill_lookahead=num_prefill_lookahead,
+         )
++        if hasattr(self.speculator, "bind_ngram_request_state"):
++            self.speculator.bind_ngram_request_state(self.req_states)
+         self.adaptive_verification: AdaptiveVerificationManager | None = None
+         self.input_buffers = InputBuffers(
+             max_num_reqs=self.max_num_reqs,
+@@ -387,7 +391,10 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+ 
+             if self.use_aux_hidden_state_outputs:
+                 assert self.speculative_config is not None
+-                set_eagle3_aux_hidden_state_layers(self.model, self.speculative_config)
++                aux_config = getattr(
++                    self.speculator, "aux_speculative_config", self.speculative_config
++                )
++                set_eagle3_aux_hidden_state_layers(self.model, aux_config)
+                 if self.use_pp:
+                     assert self.speculative_config.method is not None
+                     verify_supports_aux_hidden_states_over_pp(
+@@ -903,7 +910,8 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+             spec_hidden_states = hidden_states
+             if hasattr(self.model, "get_mtp_target_hidden_states"):
+                 pre_hc_hidden_states = self.model.get_mtp_target_hidden_states()
+-                spec_hidden_states = pre_hc_hidden_states[: hidden_states.shape[0]]  # type: ignore[union-attr]
++                if pre_hc_hidden_states is not None:
++                    spec_hidden_states = pre_hc_hidden_states[: hidden_states.shape[0]]
+             if isinstance(self.sampler, GPUWatermarkSampler):
+                 self.speculator.prepare_watermarking(
+                     self.sampler._get_contexts(input_batch.idx_mapping),
+@@ -2194,7 +2202,10 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+             spec_hidden_states = draft_hidden_states
+             if hasattr(self.model, "get_mtp_target_hidden_states"):
+                 pre_hc_hidden_states = self.model.get_mtp_target_hidden_states()
+-                spec_hidden_states = pre_hc_hidden_states[: draft_hidden_states.size(0)]
++                if pre_hc_hidden_states is not None:
++                    spec_hidden_states = pre_hc_hidden_states[
++                        : draft_hidden_states.size(0)
++                    ]
+             if isinstance(self.sampler, GPUWatermarkSampler):
+                 self.speculator.prepare_watermarking(
+                     self.sampler._get_contexts(input_batch.idx_mapping),
+@@ -2229,6 +2240,12 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+                 input_batch,
+                 self.req_states.draft_tokens[input_batch.idx_mapping],
+             )
++            if hasattr(self.speculator, "last_long_proposal_len"):
++                # Synchronous scheduling uses this known host length, while
++                # actual token ids stay in the request's GPU draft buffer.
++                self.draft_tokens_handler.num_draft_tokens = (
++                    self.speculator.last_long_proposal_len
++                )
+             if self.pp_handler is not None:
+                 self.pp_handler.broadcast_drafts(
+                     self.req_states.draft_tokens, input_batch
+@@ -2242,7 +2259,14 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+         return async_output
+ 
+     def take_draft_token_ids(self) -> DraftTokenIds | None:
+-        return self.draft_tokens_handler.get_draft_tokens()
++        result = self.draft_tokens_handler.get_draft_tokens()
++        lengths = getattr(self.speculator, "last_long_proposal_lens", None)
++        if result is not None and lengths is not None:
++            assert len(lengths) == len(result.draft_token_ids)
++            result.draft_token_ids = [
++                row[:length] for row, length in zip(result.draft_token_ids, lengths)
++            ]
++        return result
+ 
+     @torch.inference_mode()
+     @step_eplb_after()
+diff --git a/vllm/v1/worker/gpu/spec_decode/__init__.py b/vllm/v1/worker/gpu/spec_decode/__init__.py
+index 0616f12dd57a0eb215a68b64a61382326108e089..627ee9b294621bdcd7e063137b061337e8b52bb7 100644
+--- a/vllm/v1/worker/gpu/spec_decode/__init__.py
++++ b/vllm/v1/worker/gpu/spec_decode/__init__.py
+@@ -8,6 +8,16 @@ from vllm.config import VllmConfig
+ def init_speculator(vllm_config: VllmConfig, device: torch.device):
+     speculative_config = vllm_config.speculative_config
+     assert speculative_config is not None
++    if vllm_config.additional_config.get("swx_dmtp"):
++        from vllm.v1.worker.gpu.spec_decode.dmtp.speculator import DMTPSpeculator
++
++        return DMTPSpeculator(vllm_config, device)
++    if (
++        speculative_config.draft_model_config is not None
++        and "DMTPDFlash2DraftModel"
++        in speculative_config.draft_model_config.architectures
++    ):
++        raise ValueError("D-MTP weights require additional_config.swx_dmtp")
+     if speculative_config.method == "extract_hidden_states":
+         from vllm.v1.worker.gpu.spec_decode.extract_hidden_states import (
+             ExtractHiddenStatesSpeculator,
+@@ -22,6 +32,12 @@ def init_speculator(vllm_config: VllmConfig, device: torch.device):
+ 
+             return LiLiCorrSpeculator(vllm_config, device)
+         if "DFlash2DraftModel" in speculative_config.draft_model_config.architectures:
++            if vllm_config.additional_config.get("swx_long_ngram"):
++                from vllm.v1.worker.gpu.spec_decode.dflash2.long_ngram import (
++                    LongNgramDFlash2Speculator,
++                )
++
++                return LongNgramDFlash2Speculator(vllm_config, device)
+             from vllm.v1.worker.gpu.spec_decode.dflash2.speculator import (
+                 DFlash2Speculator,
+             )
+diff --git a/vllm/v1/worker/gpu/spec_decode/dflash/speculator.py b/vllm/v1/worker/gpu/spec_decode/dflash/speculator.py
+index 57110e0b05f16012e356fba70dac850703b5158b..4315d87ce3904743b893379673e207ec0222c6ac 100644
+--- a/vllm/v1/worker/gpu/spec_decode/dflash/speculator.py
++++ b/vllm/v1/worker/gpu/spec_decode/dflash/speculator.py
+@@ -333,6 +333,15 @@ class DFlashSpeculator(DraftModelSpeculator):
+     ) -> None:
+         """Publish context features required by a draft's candidate head."""
+ 
++    def try_ngram_draft(self, input_batch: InputBatch, num_target_tokens: int) -> bool:
++        return False
++
++    def _prepare_draft_inputs(self, *args):
++        prepare_dflash_inputs(*args)
++
++    def run_ngram_conditional(self, batch_desc, input_batch, num_target_tokens) -> bool:
++        return False
++
+     @torch.inference_mode()
+     def propose(
+         self,
+@@ -413,7 +422,7 @@ class DFlashSpeculator(DraftModelSpeculator):
+         assert self.draft_kv_cache_group_id >= 0
+         # Support multiple draft KV cache groups by preparing inputs once for each
+         for i, gid in enumerate(self.draft_kv_cache_group_ids):
+-            prepare_dflash_inputs(
++            self._prepare_draft_inputs(
+                 self.input_buffers,
+                 self.block_tables.slot_mappings[gid],
+                 self.context_positions,
+@@ -444,6 +453,9 @@ class DFlashSpeculator(DraftModelSpeculator):
+                 self.sample_from_anchor,
+             )
+ 
++        if not dummy_run and self.try_ngram_draft(input_batch, num_target_tokens):
++            return self.draft_tokens[:num_reqs]
++
+         batch_sync, num_batch_tokens = (
+             self._build_uniform_batch_dp_sync(dp_sync, num_reqs, self.num_query_per_req)
+             if dp_sync is not None
+@@ -504,7 +516,10 @@ class DFlashSpeculator(DraftModelSpeculator):
+ 
+         if batch_desc.cg_mode == CUDAGraphMode.FULL:
+             assert self.query_cudagraph_manager is not None
+-            self.query_cudagraph_manager.run_fullgraph(batch_desc)
++            if not self.run_ngram_conditional(
++                batch_desc, input_batch, num_target_tokens
++            ):
++                self.query_cudagraph_manager.run_fullgraph(batch_desc)
+         else:
+             self._generate_draft(
+                 num_reqs,
+diff --git a/vllm/v1/worker/gpu/spec_decode/dflash2/long_gdn_fastpath.py b/vllm/v1/worker/gpu/spec_decode/dflash2/long_gdn_fastpath.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..ee30145c5baf67957165e19f73312b25b387c26a
+--- /dev/null
++++ b/vllm/v1/worker/gpu/spec_decode/dflash2/long_gdn_fastpath.py
+@@ -0,0 +1,118 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Keep the stock <=8-token GDN kernel usable with a wider rollback cache."""
++
++import copy
++
++import torch
++
++from vllm.triton_utils import tl, triton
++
++
++@triton.jit
++def _rebase_ssm_state(
++    indices,
++    accepted,
++    state,
++    slots: tl.constexpr,
++    state_size: tl.constexpr,
++    state_stride: tl.constexpr,
++    state_shape: tl.constexpr,
++    inner_strides: tl.constexpr,
++    index_stride: tl.constexpr,
++    BLOCK: tl.constexpr,
++):
++    row = tl.program_id(0)
++    column = tl.minimum(tl.maximum(tl.load(accepted + row) - 1, 0), slots - 1)
++    source = tl.load(indices + row * index_stride + column).to(tl.int64)
++    destination = tl.load(indices + row * index_stride).to(tl.int64)
++    offsets = tl.program_id(1) * BLOCK + tl.arange(0, BLOCK)
++    valid = (source >= 0) & (destination >= 0) & (offsets < state_size)
++    remainder = offsets
++    inner = tl.full((BLOCK,), 0, tl.int64)
++    for dimension in tl.static_range(len(state_shape) - 1, -1, -1):
++        inner += (remainder % state_shape[dimension]) * inner_strides[dimension]
++        remainder //= state_shape[dimension]
++    values = tl.load(state + source * state_stride + inner, valid, other=0)
++    tl.store(state + destination * state_stride + inner, values, valid)
++
++
++def rebase_short_ssm_metadata(metadata, state):
++    """Preserve the previous accepted state before compacting output slots."""
++    indices = metadata.spec_state_indices_tensor
++    accepted = metadata.num_accepted_tokens
++    if state.is_cuda:
++        assert indices.stride(1) == 1
++        state_size = state[0].numel()
++        _rebase_ssm_state[(indices.size(0), triton.cdiv(state_size, 256))](
++            indices,
++            accepted,
++            state,
++            indices.size(1),
++            state_size,
++            state.stride(0),
++            state.shape[1:],
++            state.stride()[1:],
++            indices.stride(0),
++            256,
++        )
++    else:
++        source_column = (accepted.to(torch.int64) - 1).clamp(0, indices.size(1) - 1)
++        source = indices.gather(1, source_column[:, None]).flatten().to(torch.int64)
++        destination = indices[:, 0].to(torch.int64)
++        state.index_copy_(0, destination, state.index_select(0, source))
++    result = copy.copy(metadata)
++    result.spec_state_indices_tensor = indices[:, :8].contiguous()
++    result.num_accepted_tokens = torch.ones_like(accepted)
++    return result
++
++
++def install_long_short_gdn_fastpath():
++    from vllm.model_executor.layers.mamba.gdn.qwen_gdn_linear_attn import (
++        QwenGatedDeltaNetAttention,
++    )
++
++    cls = QwenGatedDeltaNetAttention
++    if getattr(cls, "_swx_long_short_installed", False):
++        return
++    original_check = cls._can_use_fused_gdn_mtp_decode
++    original_post_conv = cls._forward_core_decode_spec_post_conv_fused_norm
++
++    def is_short_wide(metadata):
++        indices = metadata.spec_state_indices_tensor
++        return (
++            indices is not None
++            and indices.size(1) > 8
++            and metadata.num_prefills == 0
++            and metadata.num_spec_decodes > 0
++            and (
++                metadata.uniform_spec_sequence_length is not None
++                and metadata.uniform_spec_sequence_length <= 8
++                or indices.size(0) == 1
++                and metadata.num_actual_tokens <= 8
++            )
++        )
++
++    def can_use(self, metadata):
++        if is_short_wide(metadata):
++            compact = copy.copy(metadata)
++            compact.spec_state_indices_tensor = metadata.spec_state_indices_tensor[
++                :, :8
++            ]
++            result = original_check(self, compact)
++            if result:
++                self._swx_short_fused_enabled = True
++            return result
++        return original_check(self, metadata)
++
++    def post_conv(self, *args, **kwargs):
++        metadata = kwargs["attn_metadata"]
++        if is_short_wide(metadata):
++            kwargs["attn_metadata"] = rebase_short_ssm_metadata(
++                metadata, self.kv_cache[1]
++            )
++        return original_post_conv(self, *args, **kwargs)
++
++    cls._can_use_fused_gdn_mtp_decode = can_use
++    cls._forward_core_decode_spec_post_conv_fused_norm = post_conv
++    cls._swx_long_short_installed = True
+diff --git a/vllm/v1/worker/gpu/spec_decode/dflash2/long_ngram.py b/vllm/v1/worker/gpu/spec_decode/dflash2/long_ngram.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..d0c4e5f4721040b0cd7a02ce34bf904d54c04b36
+--- /dev/null
++++ b/vllm/v1/worker/gpu/spec_decode/dflash2/long_ngram.py
+@@ -0,0 +1,311 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Long retrieved drafts with an unchanged 7-token DFlash2 query network."""
++
++import copy
++
++import torch
++
++from vllm.triton_utils import tl, triton
++from vllm.v1.worker.gpu.spec_decode.dflash2.ngram import _find_matches
++from vllm.v1.worker.gpu.spec_decode.dflash2.speculator import DFlash2Speculator
++
++
++@triton.jit
++def _select_long_match(
++    history,
++    lengths,
++    mapping,
++    partials,
++    status,
++    tokens,
++    neural,
++    stride: tl.constexpr,
++    max_len: tl.constexpr,
++    num_blocks: tl.constexpr,
++    min_steps: tl.constexpr,
++    max_steps: tl.constexpr,
++    BLOCK: tl.constexpr,
++    TOKEN_BLOCK: tl.constexpr,
++    CONFIRM_NEURAL: tl.constexpr,
++):
++    row = tl.program_id(0)
++    offsets = tl.arange(0, BLOCK)
++    score = tl.max(
++        tl.load(partials + row * num_blocks + offsets, offsets < num_blocks, 0), 0
++    )
++    end = score % (max_len + 1)
++    req = tl.load(mapping + row)
++    available = tl.load(lengths + req) - end
++    count = tl.where(available >= max_steps, max_steps, min_steps)
++    count = tl.where(score > 0, count, 0)
++    cols = tl.arange(0, TOKEN_BLOCK)
++    values = tl.load(
++        history + req * stride + end + cols,
++        mask=(score > 0) & (cols < count),
++        other=-1,
++    )
++    if CONFIRM_NEURAL:
++        proposed = tl.load(neural + row * 7 + cols, cols < 7, other=-2)
++        agrees = tl.sum(((cols < 7) & (values == proposed)).to(tl.int32), 0) == 7
++        count = tl.where(agrees, count, 0)
++    tl.store(status + row, score * 64 + count)
++    tl.store(tokens + row * max_steps + cols, values, cols < max_steps)
++
++
++@triton.jit
++def _assemble_long_drafts(
++    output,
++    neural,
++    retrieved,
++    status,
++    cu_logits,
++    num_sampled,
++    stats,
++    max_steps: tl.constexpr,
++    RECORD: tl.constexpr,
++    BLOCK: tl.constexpr,
++):
++    row = tl.program_id(0)
++    count = tl.load(status + row) % 64
++    cols = tl.arange(0, BLOCK)
++    old = tl.load(neural + row * 7 + cols, cols < 7, other=0)
++    copied = tl.load(retrieved + row * max_steps + cols, cols < count, other=0)
++    values = tl.where(count > 0, copied, old)
++    tl.store(output + row * max_steps + cols, values, cols < max_steps)
++    if RECORD:
++        width = tl.load(cu_logits + row + 1) - tl.load(cu_logits + row) - 1
++        accepted = tl.minimum(tl.maximum(tl.load(num_sampled + row) - 1, 0), width)
++        group = tl.where(
++            width == 7, 0, tl.where(width == 15, 1, tl.where(width == 31, 2, 3))
++        )
++        if width > 0:
++            tl.atomic_add(stats + group * 5, 1)
++            tl.atomic_add(stats + group * 5 + 1, width)
++            tl.atomic_add(stats + group * 5 + 2, accepted)
++            tl.atomic_add(stats + group * 5 + 3, (accepted == 0).to(tl.int64))
++            tl.atomic_add(stats + group * 5 + 4, (accepted == width).to(tl.int64))
++
++
++class LongConfirmedNgramLookup:
++    def __init__(
++        self,
++        max_len,
++        device,
++        min_steps=15,
++        max_steps=31,
++        min_n=8,
++        max_n=16,
++        max_reqs=1,
++    ):
++        assert 7 < min_steps <= max_steps < 64
++        self.max_len = max_len
++        self.min_steps = min_steps
++        self.max_steps = max_steps
++        self.min_n = min_n
++        self.max_n = max_n
++        self.num_blocks = triton.cdiv(max_len, 256)
++        self.partials = torch.empty(
++            max_reqs, self.num_blocks, dtype=torch.int32, device=device
++        )
++        self.status = torch.empty(max_reqs, dtype=torch.int64, device=device)
++
++    def lookup(self, history, lengths, mapping, tokens):
++        return self.lookup_batch(history, lengths, mapping[:1], tokens)[0]
++
++    def lookup_batch(self, history, lengths, mapping, tokens, neural=None):
++        num_reqs = mapping.numel()
++        _find_matches[(self.num_blocks, num_reqs)](
++            history,
++            lengths,
++            mapping,
++            self.partials,
++            history.stride(0),
++            self.max_len,
++            self.min_steps,
++            self.min_n,
++            self.max_n,
++            256,
++        )
++        _select_long_match[(num_reqs,)](
++            history,
++            lengths,
++            mapping,
++            self.partials,
++            self.status,
++            tokens,
++            tokens if neural is None else neural,
++            history.stride(0),
++            self.max_len,
++            self.num_blocks,
++            self.min_steps,
++            self.max_steps,
++            triton.next_power_of_2(self.num_blocks),
++            triton.next_power_of_2(self.max_steps),
++            neural is not None,
++        )
++        values = self.status[:num_reqs].cpu().tolist()
++        self.last_raw_hits = sum(value // 64 > 0 for value in values)
++        return [(value // 64 if value % 64 else 0, value % 64) for value in values]
++
++
++class LongNgramDFlash2Speculator(DFlash2Speculator):
++    def __init__(self, vllm_config, device):
++        config = vllm_config.additional_config["swx_long_ngram"]
++        if config.get("fast_short_gdn", False):
++            from .long_gdn_fastpath import install_long_short_gdn_fastpath
++
++            install_long_short_gdn_fastpath()
++        self.long_max_reqs = vllm_config.scheduler_config.max_num_seqs
++        self.long_neural_confirm = bool(config.get("neural_confirm", False))
++        self.long_min_n = int(config.get("min_n", 8))
++        if vllm_config.scheduler_config.async_scheduling:
++            raise ValueError(
++                "Host-dispatched long drafts require async_scheduling=False."
++            )
++        self.long_max_steps = vllm_config.num_speculative_tokens
++        self.long_min_steps = int(config.get("min_long_steps", 15))
++        if not 7 < self.long_min_steps <= self.long_max_steps < 64:
++            raise ValueError("Expected 7 < min_long_steps <= max_steps < 64.")
++        private_config = copy.copy(vllm_config)
++        private_config.speculative_config = copy.copy(vllm_config.speculative_config)
++        private_config.speculative_config.num_speculative_tokens = 7
++        private_config.additional_config = dict(vllm_config.additional_config)
++        private_config.additional_config.pop("swx_long_ngram")
++        if private_config.speculative_config.draft_sample_method != "greedy":
++            raise ValueError("This private experiment only supports greedy drafts.")
++        self._long_context_graphs = {}
++        self._long_context_graphs_ready = False
++        super().__init__(private_config, device)
++        self.long_enabled = False
++        self.last_long_proposal_len = 7
++        self.long_output_tokens = torch.empty(
++            self.long_max_reqs, self.long_max_steps, dtype=torch.int64, device=device
++        )
++        self.long_retrieved_tokens = torch.empty_like(self.long_output_tokens)
++        self.long_acceptance_stats = torch.zeros(4, 5, dtype=torch.int64, device=device)
++        self.last_long_proposal_lens = [7]
++        self.long_lookups = 0
++        self.long_hits_by_length = {15: 0, 31: 0}
++        self.long_raw_hits = 0
++        self._long_hit_this_step = False
++
++    def init_cudagraph_manager(self, cudagraph_mode):
++        self.vllm_config.compilation_config = copy.copy(
++            self.vllm_config.compilation_config
++        )
++        self.vllm_config.compilation_config.cudagraph_capture_sizes = list(
++            range(8, 8 * self.long_max_reqs + 1, 8)
++        )
++        self.vllm_config.compilation_config.max_cudagraph_capture_size = (
++            8 * self.long_max_reqs
++        )
++        super().init_cudagraph_manager(cudagraph_mode)
++
++    def bind_ngram_request_state(self, request_state):
++        super().bind_ngram_request_state(request_state)
++        self.long_lookup = LongConfirmedNgramLookup(
++            request_state.all_token_ids.gpu.shape[1],
++            self.device,
++            min_steps=self.long_min_steps,
++            max_steps=self.long_max_steps,
++            min_n=self.long_min_n,
++            max_reqs=self.long_max_reqs,
++        )
++
++    def _precompute_context_kv(self, start, end, dummy_run=False):
++        if (
++            self._long_context_graphs_ready
++            and not dummy_run
++            and 0 < end <= self.long_max_steps + 1
++            and not torch.cuda.is_current_stream_capturing()
++        ):
++            key = (start, end)
++            if key not in self._long_context_graphs:
++                super()._precompute_context_kv(start, end)
++                graph = torch.cuda.CUDAGraph()
++                with torch.cuda.graph(graph):
++                    super()._precompute_context_kv(start, end)
++                self._long_context_graphs[key] = graph
++            self._long_context_graphs[key].replay()
++            return
++        super()._precompute_context_kv(start, end, dummy_run)
++
++    def try_ngram_draft(self, input_batch, num_target_tokens):
++        if (
++            not self.long_enabled
++            or input_batch.has_prefill
++            or self.long_neural_confirm
++            or input_batch.num_reqs != 1
++        ):
++            return False
++        self.long_lookups += 1
++        score, count = self.long_lookup.lookup(
++            self.ngram_request_state.all_token_ids.gpu,
++            self.ngram_request_state.total_len.gpu,
++            input_batch.idx_mapping,
++            self.long_output_tokens[0],
++        )
++        self.long_raw_hits += self.long_lookup.last_raw_hits
++        if not score:
++            return False
++        self.last_long_proposal_len = count
++        self.last_long_proposal_lens = [count]
++        self.long_hits_by_length[count] = self.long_hits_by_length.get(count, 0) + 1
++        self._long_hit_this_step = True
++        self._precompute_context_kv(0, num_target_tokens)
++        return True
++
++    @torch.inference_mode()
++    def propose(self, *args, **kwargs):
++        input_batch = args[0] if args else kwargs["input_batch"]
++        num_reqs = input_batch.num_reqs
++        self.last_long_proposal_len = 7
++        self.last_long_proposal_lens = [7] * num_reqs
++        self._long_hit_this_step = False
++        neural = super().propose(*args, **kwargs)
++        output = self.long_output_tokens[:num_reqs]
++        num_sampled = args[5] if len(args) > 5 else kwargs.get("num_sampled")
++        retrieved = output if self._long_hit_this_step else self.long_retrieved_tokens
++        if not self._long_hit_this_step:
++            # Startup warmup may schedule the maximum width independently of
++            # the real handler length. Unused ids must remain in vocabulary.
++            if num_sampled is None:
++                output.zero_()
++                output[:, :7].copy_(neural)
++            else:
++                self.long_lookup.status[:num_reqs].zero_()
++            if (
++                self.long_enabled
++                and not kwargs.get("dummy_run", False)
++                and not input_batch.has_prefill
++                and (self.long_neural_confirm or num_reqs > 1)
++            ):
++                self.long_lookups += num_reqs
++                matches = self.long_lookup.lookup_batch(
++                    self.ngram_request_state.all_token_ids.gpu,
++                    self.ngram_request_state.total_len.gpu,
++                    input_batch.idx_mapping[:num_reqs],
++                    self.long_retrieved_tokens,
++                    neural=neural if self.long_neural_confirm else None,
++                )
++                self.long_raw_hits += self.long_lookup.last_raw_hits
++                for row, (score, count) in enumerate(matches):
++                    if score:
++                        self.last_long_proposal_lens[row] = count
++                        self.long_hits_by_length[count] += 1
++                self.last_long_proposal_len = max(self.last_long_proposal_lens)
++        if num_sampled is not None:
++            _assemble_long_drafts[(num_reqs,)](
++                output,
++                neural,
++                retrieved,
++                self.long_lookup.status,
++                input_batch.cu_num_logits,
++                num_sampled,
++                self.long_acceptance_stats,
++                self.long_max_steps,
++                not kwargs.get("dummy_run", False),
++                triton.next_power_of_2(self.long_max_steps),
++            )
++        return output
+diff --git a/vllm/v1/worker/gpu/spec_decode/dflash2/ngram.py b/vllm/v1/worker/gpu/spec_decode/dflash2/ngram.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..68874ca7c30975e8236df117c33b0ae08caedff0
+--- /dev/null
++++ b/vllm/v1/worker/gpu/spec_decode/dflash2/ngram.py
+@@ -0,0 +1,161 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Exact suffix retrieval from a request's confirmed token history."""
++
++import torch
++
++from vllm.triton_utils import tl, triton
++
++
++@triton.jit
++def _find_matches(
++    history,
++    lengths,
++    mapping,
++    partials,
++    stride: tl.constexpr,
++    max_len: tl.constexpr,
++    steps: tl.constexpr,
++    min_n: tl.constexpr,
++    max_n: tl.constexpr,
++    BLOCK: tl.constexpr,
++):
++    block = tl.program_id(0)
++    row = tl.program_id(1)
++    req = tl.load(mapping + row)
++    length = tl.load(lengths + req)
++    ends = block * BLOCK + tl.arange(0, BLOCK) + 1
++    valid = (ends <= length - steps) & (ends <= max_len)
++    matched = valid
++    score = tl.full((BLOCK,), 0, tl.int32)
++    for offset in tl.static_range(max_n):
++        candidate = tl.load(
++            history + req * stride + ends - 1 - offset,
++            mask=valid & (ends > offset),
++            other=-1,
++        )
++        suffix = tl.load(
++            history + req * stride + length - 1 - offset,
++            mask=length > offset,
++            other=-2,
++        )
++        matched &= (ends > offset) & (length > offset) & (candidate == suffix)
++        if offset + 1 >= min_n:
++            score = tl.where(matched, (offset + 1) * (max_len + 1) + ends, score)
++    tl.store(partials + row * tl.num_programs(0) + block, tl.max(score, 0))
++
++
++@triton.jit
++def _choose_match(
++    history,
++    mapping,
++    partials,
++    best,
++    tokens,
++    stride: tl.constexpr,
++    max_len: tl.constexpr,
++    num_blocks: tl.constexpr,
++    steps: tl.constexpr,
++    BLOCK: tl.constexpr,
++    TOKEN_BLOCK: tl.constexpr,
++):
++    offsets = tl.arange(0, BLOCK)
++    score = tl.max(tl.load(partials + offsets, offsets < num_blocks, 0), 0)
++    tl.store(best, score)
++    end = score % (max_len + 1)
++    req = tl.load(mapping)
++    cols = tl.arange(0, TOKEN_BLOCK)
++    values = tl.load(
++        history + req * stride + end + cols,
++        mask=(score > 0) & (cols < steps),
++        other=0,
++    )
++    tl.store(tokens + cols, values, cols < steps)
++
++
++@triton.jit
++def _cache_point_mass(
++    logits,
++    cached_ids,
++    tokens,
++    mapping,
++    stride_req: tl.constexpr,
++    stride_step: tl.constexpr,
++    steps: tl.constexpr,
++    top_k: tl.constexpr,
++    BLOCK: tl.constexpr,
++):
++    step = tl.program_id(0)
++    req = tl.load(mapping)
++    cols = tl.arange(0, BLOCK)
++    base = (req * steps + step) * top_k
++    old_ids = tl.load(cached_ids + base + cols, cols < top_k, 0)
++    row = logits + req * stride_req + step * stride_step
++    tl.store(row + old_ids, -float("inf"), cols < top_k)
++    tl.debug_barrier()
++    token = tl.load(tokens + step)
++    tl.store(row + token, 0.0)
++    # Keep the retrieval token in the sparse cache's next clearing set.
++    tl.store(cached_ids + base, token)
++
++
++class ConfirmedNgramLookup:
++    """Retrieve K known continuation tokens; prefer longer then newer matches.
++
++    This initial policy serves single-request decode batches. The host reads
++    one scalar to decide whether the neural drafter can be skipped.
++    """
++
++    def __init__(self, max_len, steps, device, min_n=3, max_n=8):
++        self.max_len = max_len
++        self.steps = steps
++        self.min_n = min_n
++        self.max_n = max_n
++        self.num_blocks = triton.cdiv(max_len, 256)
++        self.partials = torch.empty(self.num_blocks, dtype=torch.int32, device=device)
++        self.best = torch.empty((), dtype=torch.int32, device=device)
++
++    def lookup_async(self, history, lengths, mapping, tokens):
++        _find_matches[(self.num_blocks,)](
++            history,
++            lengths,
++            mapping,
++            self.partials,
++            history.stride(0),
++            self.max_len,
++            self.steps,
++            self.min_n,
++            self.max_n,
++            256,
++        )
++        _choose_match[(1,)](
++            history,
++            mapping,
++            self.partials,
++            self.best,
++            tokens,
++            history.stride(0),
++            self.max_len,
++            self.num_blocks,
++            self.steps,
++            triton.next_power_of_2(self.num_blocks),
++            triton.next_power_of_2(self.steps),
++        )
++        return self.best
++
++    def lookup(self, history, lengths, mapping, tokens):
++        return int(self.lookup_async(history, lengths, mapping, tokens).item())
++
++    def cache_proposal(self, logits, cached_ids, tokens, mapping):
++        if logits is not None:
++            _cache_point_mass[(self.steps,)](
++                logits,
++                cached_ids,
++                tokens,
++                mapping,
++                logits.stride(0),
++                logits.stride(1),
++                self.steps,
++                cached_ids.shape[-1],
++                triton.next_power_of_2(cached_ids.shape[-1]),
++            )
+diff --git a/vllm/v1/worker/gpu/spec_decode/dflash2/speculator.py b/vllm/v1/worker/gpu/spec_decode/dflash2/speculator.py
+index bb14621129127a07cc1d266067b89d5cbd87dc1e..48fbf56b3ea7da10ce6a97759d2a43430610bb15 100644
+--- a/vllm/v1/worker/gpu/spec_decode/dflash2/speculator.py
++++ b/vllm/v1/worker/gpu/spec_decode/dflash2/speculator.py
+@@ -196,6 +196,144 @@ class DFlash2Speculator(DFlashSpeculator):
+         self.candidate_sampler = CandidateSampler(
+             self.max_num_reqs, self.num_speculative_steps, self.top_k, device
+         )
++        self.ngram_enabled = False
++        self.ngram_lookups = 0
++        self.ngram_hits = 0
++        self.ngram_trace_enabled = False
++        self.ngram_match_lengths = []
++        self.ngram_request_state = None
++        self.ngram_context_graph = None
++        self.ngram_context_graph_replays = 0
++        self.ngram_miss_backoff = 0
++        self.ngram_cooldown = 0
++        self.ngram_active_req = None
++        self.ngram_skipped_lookups = 0
++        self.ngram_native_conditional = False
++        self.ngram_conditional_graphs = {}
++        self.ngram_native_counts = torch.zeros(2, dtype=torch.int64, device=device)
++
++    def init_cudagraph_manager(self, cudagraph_mode):
++        super().init_cudagraph_manager(cudagraph_mode)
++        self.query_cudagraph_manager.keep_raw_graph = True
++
++    def _uses_native_ngram(self, input_batch, num_target_tokens):
++        return (
++            self.ngram_enabled
++            and self.ngram_native_conditional
++            and not self.ngram_miss_backoff
++            and input_batch.num_reqs == 1
++            and not input_batch.has_prefill
++            and self.dp_size == self.dcp_size == 1
++            and not self.enable_adaptive_verification
++            and bool(self.query_cudagraph_manager.graphs)
++            and num_target_tokens == self.num_query_per_req
++        )
++
++    def _publish_ngram_context(self, num_target_tokens):
++        self._precompute_context_kv(0, num_target_tokens)
++        self.ngram_lookup.cache_proposal(
++            self.draft_logits,
++            self.candidate_sampler.cached_candidate_ids,
++            self.draft_tokens[0],
++            self.sample_idx_mapping,
++        )
++
++    def _capture_ngram_context(self, num_target_tokens):
++        if self.ngram_context_graph is None:
++            self.ngram_context_graph = torch.cuda.CUDAGraph(keep_graph=True)
++            with torch.cuda.graph(self.ngram_context_graph):
++                self._publish_ngram_context(num_target_tokens)
++
++    def run_ngram_conditional(self, batch_desc, input_batch, num_target_tokens):
++        if not self._uses_native_ngram(input_batch, num_target_tokens):
++            return False
++        from dflash2_conditional import ConditionalGraph
++
++        key = (self.ngram_lookup.min_n, self.ngram_lookup.max_n, batch_desc)
++        if key not in self.ngram_conditional_graphs:
++            self._capture_ngram_context(num_target_tokens)
++
++            def lookup():
++                self.ngram_lookup.lookup_async(
++                    self.ngram_request_state.all_token_ids.gpu,
++                    self.ngram_request_state.total_len.gpu,
++                    self.sample_idx_mapping,
++                    self.draft_tokens[0],
++                )
++
++            lookup()
++            lookup_graph = torch.cuda.CUDAGraph(keep_graph=True)
++            with torch.cuda.graph(lookup_graph):
++                lookup()
++            self.ngram_conditional_graphs[key] = ConditionalGraph(
++                lookup_graph,
++                self.ngram_context_graph,
++                self.query_cudagraph_manager.graphs[batch_desc],
++                self.ngram_lookup.best,
++                self.ngram_native_counts,
++            )
++        self.ngram_conditional_graphs[key].replay()
++        return True
++
++    def bind_ngram_request_state(self, request_state):
++        from .ngram import ConfirmedNgramLookup
++
++        self.ngram_request_state = request_state
++        self.ngram_lookup = ConfirmedNgramLookup(
++            request_state.all_token_ids.gpu.shape[1],
++            self.num_speculative_steps,
++            self.device,
++        )
++
++    def try_ngram_draft(self, input_batch, num_target_tokens):
++        if self._uses_native_ngram(input_batch, num_target_tokens):
++            return False
++        if (
++            not self.ngram_enabled
++            or input_batch.num_reqs != 1
++            or self.dp_size != 1
++            or self.dcp_size != 1
++            or self.enable_adaptive_verification
++        ):
++            return False
++        if input_batch.req_ids[0] != self.ngram_active_req:
++            self.ngram_active_req = input_batch.req_ids[0]
++            self.ngram_cooldown = 0
++        if input_batch.has_prefill:
++            return False
++        if self.ngram_cooldown:
++            self.ngram_cooldown -= 1
++            self.ngram_skipped_lookups += 1
++            return False
++        assert self.ngram_request_state is not None
++        self.ngram_lookups += 1
++        score = self.ngram_lookup.lookup(
++            self.ngram_request_state.all_token_ids.gpu,
++            self.ngram_request_state.total_len.gpu,
++            input_batch.idx_mapping,
++            self.draft_tokens[0],
++        )
++        if self.ngram_trace_enabled:
++            self.ngram_match_lengths.append(score // (self.ngram_lookup.max_len + 1))
++        if not score:
++            self.ngram_cooldown = self.ngram_miss_backoff
++            return False
++        self.ngram_hits += 1
++        # A skipped query forward must still publish newly confirmed target
++        # features to every draft layer's context KV cache.
++        use_graph = (
++            self.query_cudagraph_manager is not None
++            and bool(self.query_cudagraph_manager.graphs)
++            and num_target_tokens == self.num_query_per_req
++        )
++
++        if use_graph:
++            self._capture_ngram_context(num_target_tokens)
++            self.ngram_context_graph.replay()
++            self.ngram_context_graph_replays += 1
++        else:
++            self._publish_ngram_context(num_target_tokens)
++        return True
+ 
+     def draft_logits_spec(self, vllm_config: VllmConfig) -> tuple[torch.dtype, float]:
+         # fp32 so the walk and the rejection that checks it read the same
+diff --git a/vllm/v1/worker/gpu/spec_decode/dmtp/__init__.py b/vllm/v1/worker/gpu/spec_decode/dmtp/__init__.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..208f01a7cb5ee04c88d276fec2082cd4e830884b
+--- /dev/null
++++ b/vllm/v1/worker/gpu/spec_decode/dmtp/__init__.py
+@@ -0,0 +1,2 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+diff --git a/vllm/v1/worker/gpu/spec_decode/dmtp/config.py b/vllm/v1/worker/gpu/spec_decode/dmtp/config.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..77b1dab0d5ac8efc663a7d57bffdb926efdd5eb2
+--- /dev/null
++++ b/vllm/v1/worker/gpu/spec_decode/dmtp/config.py
+@@ -0,0 +1,108 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Opt-in configuration for the private, seven-candidate D-MTP experiment."""
++
++import copy
++
++
++def validate_checkpoint(config):
++    expected = {
++        "schema_version": 1,
++        "draft_input_slots": 7,
++        "proposed_tokens": 7,
++        "dflash_predicted_tokens": 6,
++        "mtp_hidden": "single_stream_before_first_candidate",
++        "target_context": "strictly_before_pending_A",
++        "requires_hybrid_vllm_proposer": True,
++    }
++    metadata = getattr(config, "dmtp", {})
++    if any(metadata.get(k) != v for k, v in expected.items()):
++        raise ValueError("D-MTP checkpoint has an incompatible alignment contract")
++    if metadata.get("mode") not in ("token", "fusion"):
++        raise ValueError("D-MTP mode must be token or fusion")
++    residual = metadata.get("fusion_residual", False)
++    if not isinstance(residual, bool) or (residual and metadata["mode"] != "fusion"):
++        raise ValueError("fusion_residual must be boolean and requires fusion mode")
++    if getattr(config, "hc_mult", 1) != 1:
++        raise ValueError("DFlash consumes collapsed target features, not HC residuals")
++    if config.dflash_config.get("moe"):
++        raise ValueError("This matched D-MTP control requires a dense DFlash2 tail")
++    if config.dflash_config.get("block_size", 7) != 7:
++        raise ValueError("D-MTP exports must declare seven query slots")
++
++
++def compress_context_gap(config):
++    """Preserve the absolute attention mask while removing the pending-A KV hole.
++
++    Query RoPE advances by one; query cache slots remain next to target context.
++    Reducing SWA by one preserves its lower context bound. The seven query
++    tokens must still attend to one another without restriction.
++    """
++    config = copy.deepcopy(config)
++    window = config.dflash_config.get(
++        "swa_window_size", getattr(config, "sliding_window", None)
++    )
++    if window:
++        if window <= 7:
++            raise ValueError("D-MTP needs an SWA window larger than its query block")
++        config.dflash_config["swa_window_size"] = window - 1
++    return config
++
++
++def make_child_configs(config):
++    from vllm.config import SpeculativeConfig
++    from vllm.transformers_utils.config import get_hf_text_config
++
++    spec = config.speculative_config
++    options = config.additional_config.get("swx_dmtp")
++    if not isinstance(options, dict) or not options.get("model"):
++        raise ValueError("additional_config.swx_dmtp.model must name a hybrid export")
++    if set(options) != {"model"}:
++        raise ValueError("Unknown swx_dmtp option")
++    if spec.method != "mtp" or spec.num_speculative_tokens != 7:
++        raise ValueError("D-MTP scheduler requires method=mtp and seven candidates")
++    if "Qwen4ExpMTP" not in spec.draft_model_config.architectures:
++        raise ValueError("This D-MTP adapter supports the Qwen4Exp native MTP only")
++    if not config.use_v2_model_runner:
++        raise ValueError("D-MTP requires VLLM_USE_V2_MODEL_RUNNER=1")
++    if (
++        config.scheduler_config.max_num_seqs * 7
++        > config.scheduler_config.max_num_batched_tokens
++    ):
++        raise ValueError("D-MTP requires max_num_batched_tokens >= 7 * max_num_seqs")
++    if spec.draft_sample_method != "greedy" or spec.enable_adaptive_verification:
++        raise ValueError("D-MTP supports fixed-width greedy drafts only")
++    parallel = config.parallel_config
++    sizes = (
++        parallel.tensor_parallel_size,
++        parallel.pipeline_parallel_size,
++        parallel.data_parallel_size,
++        parallel.decode_context_parallel_size,
++        parallel.prefill_context_parallel_size,
++    )
++    if any(size != 1 for size in sizes) or parallel.enable_eplb:
++        raise ValueError("D-MTP requires TP=PP=DP=DCP=PCP=1 and no EPLB")
++    if config.lora_config or getattr(config, "watermark_config", None):
++        raise ValueError("D-MTP LoRA and watermarking are not implemented")
++    if any(config.additional_config.get(k) for k in ("swx_ngram", "swx_long_ngram")):
++        raise ValueError("D-MTP cannot be combined with the n-gram experiment")
++
++    native = copy.copy(config)
++    native.speculative_config = copy.copy(spec)
++    native.speculative_config.num_speculative_tokens = 1
++    tail = copy.copy(config)
++    tail.speculative_config = SpeculativeConfig(
++        target_model_config=config.model_config,
++        target_parallel_config=parallel,
++        model=options["model"],
++        method="dflash",
++        num_speculative_tokens=6,
++        draft_sample_method="greedy",
++    )
++    draft = tail.speculative_config.draft_model_config
++    if draft.architectures != ["DMTPDFlash2DraftModel"]:
++        raise ValueError("swx_dmtp.model must be a DMTPDFlash2DraftModel export")
++    validate_checkpoint(draft.hf_config)
++    draft.hf_config = compress_context_gap(draft.hf_config)
++    draft.hf_text_config = get_hf_text_config(draft.hf_config)
++    return native, tail
+diff --git a/vllm/v1/worker/gpu/spec_decode/dmtp/fusion.py b/vllm/v1/worker/gpu/spec_decode/dmtp/fusion.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..55416b4880f2049889984b20bdafe8bfbc48d32b
+--- /dev/null
++++ b/vllm/v1/worker/gpu/spec_decode/dmtp/fusion.py
+@@ -0,0 +1,39 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++import torch
++from torch import nn
++
++
++class FusionNorm(nn.Module):
++    """Match the trainer's float32 RMS/weight accumulation before casting."""
++
++    def __init__(self, width, dtype):
++        super().__init__()
++        self.weight = nn.Parameter(torch.ones(width, dtype=dtype), requires_grad=False)
++
++    def forward(self, x):
++        y = x.float()
++        return (
++            y
++            * torch.rsqrt(y.square().mean(-1, keepdim=True) + 1e-6)
++            * self.weight.to(x.dtype).float()
++        ).to(x.dtype)
++
++
++class AnchorFusion(nn.Module):
++    def __init__(self, width, dtype, residual=False):
++        super().__init__()
++        self.residual = residual
++        self.embedding_norm = FusionNorm(width, dtype)
++        self.mtp_norm = FusionNorm(width, dtype)
++        self.projection = nn.Linear(2 * width, width, bias=False, dtype=dtype)
++        self.requires_grad_(False)
++
++    def forward(self, embedding, mtp_hidden):
++        fused = self.projection(
++            torch.cat(
++                [self.embedding_norm(embedding), self.mtp_norm(mtp_hidden)], dim=-1
++            )
++        )
++        return embedding + fused if self.residual else fused
+diff --git a/vllm/v1/worker/gpu/spec_decode/dmtp/speculator.py b/vllm/v1/worker/gpu/spec_decode/dmtp/speculator.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..0fd467f44f2ddac04e2e9a5053d2f72bd2bdec2a
+--- /dev/null
++++ b/vllm/v1/worker/gpu/spec_decode/dmtp/speculator.py
+@@ -0,0 +1,159 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Native MTP T1 followed by six parallel DFlash2 candidates.
++
++MTP advances only with the target-verified prefix, using vLLM's native shifted
++inputs and rejection handling. DFlash keeps its own target-context/scratch KV.
++The target runner verifies the returned seven candidates in the ordinary way.
++"""
++
++import torch
++from torch import nn
++
++from vllm.v1.worker.gpu.spec_decode.autoregressive.cudagraph_utils import (
++    SpeculatorCudaGraphManager,
++)
++from vllm.v1.worker.gpu.spec_decode.dflash.speculator import prepare_dflash_inputs
++from vllm.v1.worker.gpu.spec_decode.dflash2.speculator import DFlash2Speculator
++from vllm.v1.worker.gpu.spec_decode.dmtp.config import make_child_configs
++from vllm.v1.worker.gpu.spec_decode.mtp.speculator import MTPSpeculator
++from vllm.v1.worker.gpu.spec_decode.speculator import DraftModelSpeculator
++
++
++class FirstTokenMTP(MTPSpeculator):
++    def __init__(self, config, device):
++        super().__init__(config, device)
++        self.first_hidden = torch.zeros(
++            self.max_num_reqs,
++            self.draft_model_config.get_hidden_size(),
++            device=device,
++            dtype=self.dtype,
++        )
++
++    def init_cudagraph_manager(self, cudagraph_mode):
++        super().init_cudagraph_manager(cudagraph_mode)
++        # One native output, but the target verifies seven drafts plus its bonus.
++        self.prefill_cudagraph_manager = SpeculatorCudaGraphManager(
++            self.vllm_config, self.device, cudagraph_mode, decode_query_len=8
++        )
++
++    def _prefill(self, num_reqs, *args, **kwargs):
++        self._sample_hidden_rows = num_reqs
++        return super()._prefill(num_reqs, *args, **kwargs)
++
++    def _run_model(self, *args, **kwargs):
++        sample, feedback = super()._run_model(*args, **kwargs)
++        n = self._sample_hidden_rows
++        if sample.shape[-1] != self.first_hidden.shape[-1]:
++            raise ValueError("MTP fusion requires its single-stream LM-head input")
++        self.first_hidden[:n].copy_(sample[self.last_token_indices[:n]])
++        return sample, feedback
++
++
++class DMTPTail(DFlash2Speculator):
++    def __init__(self, config, device):
++        super().__init__(config, device)
++        self.first_tokens = torch.zeros(
++            self.max_num_reqs, dtype=torch.int64, device=device
++        )
++
++    def _prepare_draft_inputs(self, *args):
++        prepare_dflash_inputs(*args)
++        batch = args[9]
++        n = batch.num_reqs
++        q = n * 7
++        self.input_buffers.input_ids[:q:7].copy_(self.first_tokens[:n])
++        # Keep physical slots contiguous; advance absolute query RoPE only.
++        # compress_context_gap adjusts SWA so context masking stays identical.
++        self.input_buffers.positions[:q].add_(1).clamp_(max=self.max_model_len - 1)
++        self.sample_pos[: n * 6].add_(1)
++
++    def _num_graph_context_tokens(self, num_reqs):
++        return min(num_reqs * 8, self.max_num_tokens)
++
++
++class DMTPSpeculator(DraftModelSpeculator):
++    num_query_per_req = 7
++
++    def __init__(self, vllm_config, device):
++        native_config, tail_config = make_child_configs(vllm_config)
++        super().__init__(vllm_config, device)
++        self.native = FirstTokenMTP(native_config, device)
++        self.tail = DMTPTail(tail_config, device)
++        self.aux_speculative_config = self.tail.speculative_config
++
++    def load_draft_model(self, target_model, target_attn_layer_names):
++        raise NotImplementedError("The hybrid owns two separately loaded draft models")
++
++    def load_model(self, target_model):
++        self.native.load_model(target_model)
++        self.tail.load_model(target_model)
++        self.draft_attn_layer_names = (
++            self.native.draft_attn_layer_names | self.tail.draft_attn_layer_names
++        )
++        # Expose both models to memory/offload traversal. EPLB is disabled.
++        self.model = nn.ModuleDict(
++            {"native": self.native.model, "tail": self.tail.model}
++        )
++        self.supports_mm_inputs = self.native.supports_mm_inputs
++
++    def set_attn(self, *args, **kwargs):
++        self.native.set_attn(*args, **kwargs)
++        self.tail.set_attn(*args, **kwargs)
++
++    def init_cudagraph_manager(self, cudagraph_mode):
++        self.native.init_cudagraph_manager(cudagraph_mode)
++        self.tail.init_cudagraph_manager(cudagraph_mode)
++
++    def capture(self):
++        self.native.capture()
++        self.tail.capture()
++
++    @torch.inference_mode()
++    def propose(
++        self,
++        input_batch,
++        attn_metadata,
++        slot_mappings,
++        last_hidden_states,
++        aux_hidden_states,
++        num_sampled,
++        num_rejected,
++        last_sampled,
++        next_prefill_tokens,
++        temperature,
++        seeds,
++        dp_sync=None,
++        dummy_run=False,
++        skip_attn_for_dummy_run=False,
++        mm_inputs=None,
++        is_profile=False,
++    ):
++        if not aux_hidden_states:
++            raise ValueError("D-MTP needs the configured DFlash target layer features")
++        common = dict(
++            input_batch=input_batch,
++            attn_metadata=attn_metadata,
++            slot_mappings=slot_mappings,
++            last_hidden_states=last_hidden_states,
++            num_sampled=num_sampled,
++            num_rejected=num_rejected,
++            last_sampled=last_sampled,
++            next_prefill_tokens=next_prefill_tokens,
++            temperature=temperature,
++            seeds=seeds,
++            dp_sync=dp_sync,
++            dummy_run=dummy_run,
++            skip_attn_for_dummy_run=skip_attn_for_dummy_run,
++            is_profile=is_profile,
++        )
++        first = self.native.propose(
++            **common, aux_hidden_states=None, mm_inputs=mm_inputs
++        )
++        n = input_batch.num_reqs
++        self.tail.first_tokens[:n].copy_(first[:, 0])
++        self.tail.model.model.mtp_sample_hidden[:n].copy_(self.native.first_hidden[:n])
++        suffix = self.tail.propose(**common, aux_hidden_states=aux_hidden_states)
++        self.draft_tokens[:n, :1].copy_(first)
++        self.draft_tokens[:n, 1:].copy_(suffix)
++        return self.draft_tokens[:n]

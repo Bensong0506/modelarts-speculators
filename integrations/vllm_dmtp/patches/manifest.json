@@ -1,0 +1,172 @@
+{
+  "base_commit": "bbf5893213eff1e1dc7bbe76ce410b31eaca1507",
+  "patch_file": "vllm-dmtp-bbf58932.patch",
+  "patch_sha256": "a5db5ae9854d371a576a25580c00ee28c22ff003ad00e6e1d75d9e233a6dc853",
+  "patch_bytes": 92428,
+  "files": [
+    {
+      "path": "tests/config/test_speculative_draft_hf_overrides.py",
+      "change": "modified",
+      "before_sha256": "cb483195cba9d881a3c312cd75f7a1dc8c5c9250955f75d195507b194c1d9066",
+      "after_sha256": "3d2a24905c7c213d62e2c7878dcd40fbf7e635a842bc7accab57537d12604b73",
+      "base_mode": "100644"
+    },
+    {
+      "path": "tests/models/qwen4_exp/test_config.py",
+      "change": "modified",
+      "before_sha256": "ad11608cefb7e548ee8b33763daaf7741ba7a5cda78a585c8b0bb6ca6a439521",
+      "after_sha256": "9a0da9c8dce9e275b0c546e7df29802db57dd4609a9023c415a45414b148d41f",
+      "base_mode": "100644"
+    },
+    {
+      "path": "tests/v1/spec_decode/test_dflash2.py",
+      "change": "modified",
+      "before_sha256": "59c8ffd46f2652de2dcfa1ae20d9cd597f06e077a3a6d4e23b30446ef08bdd66",
+      "after_sha256": "90663570605a0915ce50546441c1e4a55eeae42292079da574007ffac146d81e",
+      "base_mode": "100644"
+    },
+    {
+      "path": "tests/v1/spec_decode/test_dflash_prepare_inputs.py",
+      "change": "modified",
+      "before_sha256": "e16e255f677be140da83aa340aa5622ab0bee967d6c8229f7d1dc69aac363012",
+      "after_sha256": "a3ad4c6ab74ef4d0841a92567374bbceb5c4fe8368c4dee0bf87c5d483c4835e",
+      "base_mode": "100644"
+    },
+    {
+      "path": "vllm/config/speculative.py",
+      "change": "modified",
+      "before_sha256": "88cec427b52bb1cb56842f9034a4d49a915d05302b92b0249227feaf4d81f3e1",
+      "after_sha256": "3e28274e415894af0ed7b954078104917cef390fed8ca7bc44997857e8d7d5f7",
+      "base_mode": "100644"
+    },
+    {
+      "path": "vllm/model_executor/models/config.py",
+      "change": "modified",
+      "before_sha256": "03bec47631bfd2b70614bfec2b208d87cbcc3ee2a785656e3723574c51f96d03",
+      "after_sha256": "85b30b93f4377c8dbc5577cf9108cfd19e3435dd229a82f6b10bf51557192847",
+      "base_mode": "100644"
+    },
+    {
+      "path": "vllm/model_executor/models/qwen3_dmtp.py",
+      "change": "added",
+      "before_sha256": null,
+      "after_sha256": "78bad0c3ea0068838fd05d680b6e857eb9e33716cce4dd2956adfee03b3e6989",
+      "base_mode": null
+    },
+    {
+      "path": "vllm/model_executor/models/registry.py",
+      "change": "modified",
+      "before_sha256": "7f1d56e2f4c24ff7a949b0d4e796d6af70fa85a2b97c224652949f8d993dcc22",
+      "after_sha256": "1e0daed9853663dfc9cb9ab5536fd5dd32080b34f12326b5ddb9bd60a4c62aef",
+      "base_mode": "100644"
+    },
+    {
+      "path": "vllm/models/qwen4_exp/nvidia/model.py",
+      "change": "modified",
+      "before_sha256": "b90aa88d8a0969f3f69c6da7a21bb089fc65a715bc872694c646ab9651855e84",
+      "after_sha256": "1b487f369aba30a13dfc380de727dd78206dfe1ad096c9d3c58710ecfb40a07f",
+      "base_mode": "100644"
+    },
+    {
+      "path": "vllm/transformers_utils/configs/eagle.py",
+      "change": "modified",
+      "before_sha256": "a771269513fc2f17451df69a1bbd2a8de758fd035f496d2c60cd406941eb144e",
+      "after_sha256": "8c8dd23a0ff1ae614f920e2a1dcbc0b1889e7d48c53b5cdd54e826446813a799",
+      "base_mode": "100644"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/cudagraph_utils.py",
+      "change": "modified",
+      "before_sha256": "8e6ac6f655dd013dd2a3d3561bc88fe05ceeea2b060e5cb6bc85decb0bb2f813",
+      "after_sha256": "81f23b9be992143b8f1a4e8bb6dec5ac525f1236d00b95da19a3467f230e932e",
+      "base_mode": "100644"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/model_runner.py",
+      "change": "modified",
+      "before_sha256": "725c47114e148ade3a26b4cc9c5f7295588fdd387afc3cb5fdb2d16513a1bb5c",
+      "after_sha256": "0514e3c6359d4e895cfba42f66f8f3b3065b183661832b803f9926dca0e2ff03",
+      "base_mode": "100644"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/__init__.py",
+      "change": "modified",
+      "before_sha256": "61b3acba401c1079039496f72445c28bbc6119d0b508f9a75d231f305aa1b7e8",
+      "after_sha256": "4912edce06ffcfbdd8d24d5748e7a536e83b7e326e1133e6520cd2463263d66b",
+      "base_mode": "100644"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dflash/speculator.py",
+      "change": "modified",
+      "before_sha256": "36d5bccd28eb64de1af348cbdd4d630bfd7d781479be472570e14c0865826058",
+      "after_sha256": "f9697f301a1d60e0e4a5b08bd450421588aaa1ee2b7a88354d867c5d0b848d59",
+      "base_mode": "100644"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dflash2/long_gdn_fastpath.py",
+      "change": "added",
+      "before_sha256": null,
+      "after_sha256": "ce75e44172be8b6d15eff2eb13147c4fd930d4a8751feb31462c6cc2d3300682",
+      "base_mode": null
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dflash2/long_ngram.py",
+      "change": "added",
+      "before_sha256": null,
+      "after_sha256": "93c04c6308f6e343ea79009ea85df2d41921ad325f6a0892ffda0cedea888188",
+      "base_mode": null
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dflash2/ngram.py",
+      "change": "added",
+      "before_sha256": null,
+      "after_sha256": "1cf79587979fa998f21c272a19114569dec6f441f205df36d4deefe7793cbd64",
+      "base_mode": null
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dflash2/speculator.py",
+      "change": "modified",
+      "before_sha256": "f9f5b5d2623e09fb9f16d4a2e1353c7014d6a01939563e511d9f3eeec7c8163d",
+      "after_sha256": "53d5ab9106405749a967f5fdf1fe8328316c1598bc0b99d9aecf024731143a03",
+      "base_mode": "100644"
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dmtp/__init__.py",
+      "change": "added",
+      "before_sha256": null,
+      "after_sha256": "e3c55cbb0d7a8bd47df6f3378835644645f5d3bc89b45793b5d5a02d013e5c58",
+      "base_mode": null
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dmtp/config.py",
+      "change": "added",
+      "before_sha256": null,
+      "after_sha256": "64e223d9f6161c2aa75b55f450b8fd8f0c56797709f390d9e90f14907b775bc4",
+      "base_mode": null
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dmtp/fusion.py",
+      "change": "added",
+      "before_sha256": null,
+      "after_sha256": "8fd01ff9c1fa9a61cd142c8bd98814827b42be73192ada7ee17397181747dcad",
+      "base_mode": null
+    },
+    {
+      "path": "vllm/v1/worker/gpu/spec_decode/dmtp/speculator.py",
+      "change": "added",
+      "before_sha256": null,
+      "after_sha256": "063b05efd88803e0158b627293ee38e9d5dcb749c52834aaeaeaa37e32ab31c0",
+      "base_mode": null
+    }
+  ],
+  "modified_files": 14,
+  "added_files": 8,
+  "verification": {
+    "git_apply_check_on_exact_base": true,
+    "applied_files_match_all_overlay_sha256": true,
+    "runtime_checker_verified_files": 22,
+    "reverse_patch_restores_clean_base": true,
+    "gpu_rerun_for_patch_packaging": false
+  },
+  "scope": "Same byte-preserved runtime used by the archived experiment; packaging change only. Requires the original private Qwen-capable vLLM base and compatible compiled environment. Output equivalence remains unresolved."
+}

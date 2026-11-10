@@ -1,0 +1,2 @@
+# Preserve context-marker whitespace in literal Git patch artifacts.
+*.patch -whitespace

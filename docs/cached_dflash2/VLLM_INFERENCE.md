@@ -26,6 +26,8 @@ python scripts/vllm_dmtp_runtime.py --runtime-root "$RUNTIME_ROOT" --check
 
 应用脚本要求干净的正确 base checkout，校验 bundled 文件摘要后复制；版本或本地改动不匹配直接报错。`--check` 验证 HEAD、22 个文件摘要及额外改动。overlay 保留原始文件字节，不用格式化器批量改写。
 
+需要通过 patch 传递到内网时，使用 [完整 Git patch 及应用说明](../../integrations/vllm_dmtp/patches/README.md)。它包含全部 14 个修改和 8 个新增文件，实际应用后已逐文件验证与 overlay 一致；与上述 `--apply` 二选一。实验日志中的历史 `vllm.patch` 仅记录已跟踪文件，不能独立恢复全部 D-MTP 文件。
+
 在**原配套私有环境**中按照该 fork 原有的 editable 安装/构建流程让 Python 指向这个 checkout；不要把通用训练 venv 当作推理环境。若切换 PyTorch/CUDA，必须重建相应扩展并重新验证。下面启动器会验证 `import vllm` 的实际路径，发现导入到别处就拒绝运行。提供的 `--dry-run` 只打印参数，不检查 GPU、二进制扩展或启动成功。
 
 ## 为什么这样接
