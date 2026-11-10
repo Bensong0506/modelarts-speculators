@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+source ${RUN_ROOT}/control/env.sh
+arm=$1
+gpu=$2
+action=$3
+[[ "$arm" == token || "$arm" == fusion ]]
+[[ "$action" == pilot || "$action" == training ]]
+export CUDA_VISIBLE_DEVICES="$gpu"
+phase=$action
+trap 'rc=$?; printf "%s\n" "$rc" > "$exp/results/$arm-$action-exit-code.txt"; printf "%s\n" "$phase" > "$exp/results/$arm-$action-phase.txt"' EXIT
+printf '%s\n' "$$" > "$exp/results/$arm-$action-pid.txt"
+cd "$exp/repo"
+if [[ "$action" == pilot ]]; then
+ "$py" -m speculators.train.cached_dflash2 --config "$exp/control/$arm.yaml" --pilot-steps 3 --pilot-val-images 8 --output "$exp/pilots/$arm" > "$exp/logs/$arm-pilot.log" 2>&1
+else
+ "$py" -m speculators.train.cached_dflash2 --config "$exp/control/$arm.yaml" > "$exp/logs/$arm-training.log" 2>&1
+fi
+phase=completed

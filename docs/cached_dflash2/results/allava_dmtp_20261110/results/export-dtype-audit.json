@@ -1,0 +1,89 @@
+{
+  "passed": true,
+  "checkpoints": [
+    {
+      "checkpoint": "full/fusion-kl-3e-5/epochs/epoch-00/model.safetensors",
+      "dtypes": [
+        "BF16"
+      ],
+      "tensors": 84
+    },
+    {
+      "checkpoint": "full/fusion-kl-3e-5/epochs/epoch-01/model.safetensors",
+      "dtypes": [
+        "BF16"
+      ],
+      "tensors": 84
+    },
+    {
+      "checkpoint": "full/fusion-kl-3e-5/epochs/epoch-02/model.safetensors",
+      "dtypes": [
+        "BF16"
+      ],
+      "tensors": 84
+    },
+    {
+      "checkpoint": "full/fusion-kl-3e-5/epochs/epoch-03/model.safetensors",
+      "dtypes": [
+        "BF16"
+      ],
+      "tensors": 84
+    },
+    {
+      "checkpoint": "full/fusion-kl-3e-5/epochs/epoch-04/model.safetensors",
+      "dtypes": [
+        "BF16"
+      ],
+      "tensors": 84
+    },
+    {
+      "checkpoint": "full/fusion-kl-3e-5/epochs/epoch-05/model.safetensors",
+      "dtypes": [
+        "BF16"
+      ],
+      "tensors": 84
+    },
+    {
+      "checkpoint": "full/token-kl-3e-5/epochs/epoch-00/model.safetensors",
+      "dtypes": [
+        "BF16"
+      ],
+      "tensors": 81
+    },
+    {
+      "checkpoint": "full/token-kl-3e-5/epochs/epoch-01/model.safetensors",
+      "dtypes": [
+        "BF16"
+      ],
+      "tensors": 81
+    },
+    {
+      "checkpoint": "full/token-kl-3e-5/epochs/epoch-02/model.safetensors",
+      "dtypes": [
+        "BF16"
+      ],
+      "tensors": 81
+    },
+    {
+      "checkpoint": "full/token-kl-3e-5/epochs/epoch-03/model.safetensors",
+      "dtypes": [
+        "BF16"
+      ],
+      "tensors": 81
+    },
+    {
+      "checkpoint": "full/token-kl-3e-5/epochs/epoch-04/model.safetensors",
+      "dtypes": [
+        "BF16"
+      ],
+      "tensors": 81
+    },
+    {
+      "checkpoint": "full/token-kl-3e-5/epochs/epoch-05/model.safetensors",
+      "dtypes": [
+        "BF16"
+      ],
+      "tensors": 81
+    }
+  ]
+}

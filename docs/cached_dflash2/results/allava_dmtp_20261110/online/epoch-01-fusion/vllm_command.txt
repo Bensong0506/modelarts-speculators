@@ -1,0 +1,8 @@
+# Timestamp: 2026-11-10T13:55:15.028171+00:00
+# Speculators: 847b8c89f5786793efe726fe1e79ef1aeb3d2f02
+# speculators: 0.9.0a0
+# vllm: 0.31.0
+# transformers: 5.17.0
+# torch: 2.14.0a0+b2c75dd062.nv26.9.68203377
+# compressed-tensors: 0.17.0
+VLLM_USE_V2_MODEL_RUNNER=1 ${SSD_ROOT}/vllm-finetune-1102/src/vllm/.venv/bin/python ${RUN_ROOT}/control/evaluate_owned.py --progress --mode fusion --target ${SSD_ROOT}/target --target-precision fp8 --runtime-root ${SSD_ROOT}/vllm-pinned --prompts ${VAL_PROMPTS} --limit 100 --max-tokens 1024 --concurrency 64 --kv-cache-gib 32 --gpu-memory-utilization 0.65 --batched-tokens 2048 --provenance-dir ${RUN_ROOT}/online/epoch-01-fusion --draft ${RUN_ROOT}/full/fusion-kl-3e-5/epochs/epoch-01 --graph

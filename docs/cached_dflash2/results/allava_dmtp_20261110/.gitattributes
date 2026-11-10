@@ -1,0 +1,2 @@
+# Recorded diffs preserve whitespace-only context markers.
+*.patch -whitespace

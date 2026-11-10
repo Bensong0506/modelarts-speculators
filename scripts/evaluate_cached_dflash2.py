@@ -78,6 +78,7 @@ def main():  # noqa: C901
     parser.add_argument("--prompts", type=Path, required=True)
     parser.add_argument("--concurrency", type=int, default=1)
     parser.add_argument("--kv-cache-gib", type=int, default=4)
+    parser.add_argument("--gpu-memory-utilization", type=float, default=0.92)
     parser.add_argument("--batched-tokens", type=int, default=2048)
     parser.add_argument("--limit", type=int, default=16)
     parser.add_argument("--max-tokens", type=int, default=256)
@@ -98,6 +99,7 @@ def main():  # noqa: C901
         )
         <= 0
         or args.batched_tokens < 7 * args.concurrency
+        or not 0 < args.gpu_memory_utilization <= 1
     ):
         parser.error(
             "Positive resource/count limits and "
@@ -112,6 +114,7 @@ def main():  # noqa: C901
         "max_num_seqs": args.concurrency,
         "max_num_batched_tokens": args.batched_tokens,
         "kv_cache_memory_bytes": args.kv_cache_gib << 30,
+        "gpu_memory_utilization": args.gpu_memory_utilization,
         "enable_prefix_caching": False,
         "enforce_eager": not args.graph,
         "block_size": 384,

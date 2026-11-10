@@ -2,6 +2,17 @@
 
 本记录区分新分支实跑与历史预检查。运行数据、权重、连接信息和逐请求结果保留在操作者的私人实验记录中。
 
+## 2026-11-10：D-MTP 两组五轮与逐 checkpoint 在线对照
+
+完整的 [结果、设置、曲线和复核入口](results/allava_dmtp_20261110/README.md) 已归档；公开部分保留数值计数和摘要，原始图像/回答及私有路径不随仓库发布。
+
+- Token-only / residual-zero fusion 从与 dense 相同的初始化和 batch plan 出发，17998 有效训练图、各五轮 2815 更新、89990 图次，训练正常结束；selector 与原生 MTP 冻结。全部 12 份 D-MTP 导出检查为 BF16。
+- 两组独立 3 步 pilot、16 图 runtime、64 图容量均完成。随后 dense/token/fusion 各 epoch 0–5，同一批 100 验证图、同 epoch 同 GPU 的 18 次完整在线评测结束；FP8 目标、BF16 草稿、C64 上限、KV32 GiB、B2048、graph、K7、max1024。目标摘要一致、checkpoint 及输入合同审计通过。
+- 第五轮 dense AR 24.877125% / AL 2.741399；token AR 24.401003% / AL 2.708070；fusion AR 25.323670% / AL 2.772657。Fusion 相比 dense +0.446545 个百分点、+0.031258 AL；图像配对 AL 差值 95% 区间 `[0.0002103, 0.0628615]`，优势小且边缘。Token-only 下降。仅一个训练 seed 和 100 张验证图，最佳 checkpoint 选择为探索性，未校正多重比较。
+- 初始三种草稿各 16/16 输出不同于 target-only；初始 token/zero-fusion 的 16 图及 100 图互相完全一致。额外 dense epoch 5 跨 GPU 100 图输出完全一致，但没有重新做 D-MTP 跨 GPU 重复；历史异常不能据此判定已解决。
+- 私有 SSD 文件页缓存曾影响 GB300 启动的可用显存判断。实跑在权重 SHA 校验后只对本作业拥有的文件做 `POSIX_FADV_DONTNEED`，并统一设置启动门限 `gpu_memory_utilization=0.65`，显式 KV 仍为 32 GiB。提交评测参数修复，全部 22 个 runtime overlay 文件保持原字节。
+- 训练与在线接受计数完成，**不等于目标输出等价或无损吞吐收益**。BF16 目标、独立 test/训练 seed、完整状态等价仍未验证。
+
 ## 2026-11-10：dense 路径实际训练与推理
 
 - 在 ARM64 / GB300、PyTorch `2.14.0a0+b2c75dd062.nv26.09`、CUDA 13.4 的私有环境中，完整包入口完成了独立 3 步 pilot 和 64 图、1 epoch 的小训练。
@@ -13,7 +24,7 @@
 - 私有 checkout 缺少 wheel 的 ignored 构建/vendored 文件，曾导致 FlashMLA 导入失败；恢复同一 wheel 对应文件后，22 个 overlay 摘要保持通过，实际生成完成。显式使用 Triton MoE；未把可选 DeepGEMM 的 ABI 警告解释为其 backend 已可用。
 - 新增目标分片索引完整性检查，并行记录全部目标权重/索引 SHA-256。缺分片用例包含在本轮 27 项 CPU 组件测试中，全部通过。修改的 Python 文件通过定向 Ruff/format/mypy，文档格式通过；没有宣称全仓 Linux pytest 或所有 backend 已通过。
 
-本轮实际 GPU 迁移验证覆盖 dense；D-MTP token/fusion 的新包 GPU 回归、独立训练 seed、BF16 目标和通用输出等价仍待验证。训练与在线接受计数完成也不能自动把导出配置中的正确性标记改为已验证。
+以上是当日较早的 dense 验证；其后两组 D-MTP 的实际迁移运行见本页顶部。独立训练 seed、BF16 目标和通用输出等价仍待验证。训练与在线接受计数完成也不能自动把导出配置中的正确性标记改为已验证。
 
 ## 2026-11-04：历史预检查快照
 

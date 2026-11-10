@@ -1,0 +1,2 @@
+240aac205f4822813be9befeda4306bb32a27a02aa46f1a3648f2d5a05c8b8fc  config.json
+ca456cbd0e890357fd8f59261e5211c08fcdf3aac57830576bc8b8e8ed8d02a8  model.safetensors

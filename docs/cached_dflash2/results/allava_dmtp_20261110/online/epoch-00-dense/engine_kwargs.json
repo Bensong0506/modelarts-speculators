@@ -1,0 +1,42 @@
+{
+  "model": "${SSD_ROOT}/target",
+  "dtype": "bfloat16",
+  "tensor_parallel_size": 1,
+  "max_model_len": 8192,
+  "max_num_seqs": 64,
+  "max_num_batched_tokens": 2048,
+  "kv_cache_memory_bytes": 34359738368,
+  "gpu_memory_utilization": 0.65,
+  "enable_prefix_caching": false,
+  "enforce_eager": false,
+  "block_size": 384,
+  "attention_config": {
+    "flash_attn_version": 2
+  },
+  "engram_config": {
+    "cpu_offload": false
+  },
+  "kernel_config": {
+    "moe_backend": "triton"
+  },
+  "limit_mm_per_prompt": {
+    "image": 1,
+    "video": 0
+  },
+  "mm_processor_kwargs": {
+    "size": {
+      "shortest_edge": 65536,
+      "longest_edge": 262144
+    }
+  },
+  "per_request_spec_decode_metrics": "summary",
+  "speculative_config": {
+    "method": "dflash",
+    "num_speculative_tokens": 7,
+    "model": "${DENSE_RUN_ROOT}/full/dense-kl-3e-5/epochs/epoch-00"
+  },
+  "compilation_config": {
+    "mode": 0,
+    "cudagraph_mode": "FULL_DECODE_ONLY"
+  }
+}

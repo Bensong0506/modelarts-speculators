@@ -1,0 +1,165 @@
+{
+  "completed": true,
+  "pilot_completed": false,
+  "arm": "dense",
+  "epochs": 5,
+  "total_steps": 2815,
+  "images_seen": 89990,
+  "best_epoch": 5,
+  "best_validation": {
+    "teacher_selected": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 17204,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.1505,
+      "acceptance_rate": 0.3072142857142857,
+      "t1_acceptance": 0.7695,
+      "prefix_acceptance": [
+        0.7695,
+        0.528375,
+        0.33675,
+        0.21625,
+        0.140375,
+        0.0945,
+        0.06475
+      ],
+      "conditional_acceptance": [
+        0.7695,
+        0.6866471734892787,
+        0.6373314407381121,
+        0.6421677802524127,
+        0.6491329479768786,
+        0.6731967943009796,
+        0.6851851851851852
+      ],
+      "independent_position_accuracy": [
+        0.7695,
+        0.5755,
+        0.415125,
+        0.304375,
+        0.239,
+        0.208625,
+        0.166
+      ]
+    },
+    "teacher_unary": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 16337,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.042125,
+      "acceptance_rate": 0.2917321428571429,
+      "t1_acceptance": 0.774625,
+      "prefix_acceptance": [
+        0.774625,
+        0.512,
+        0.312875,
+        0.192625,
+        0.120875,
+        0.078625,
+        0.0505
+      ],
+      "conditional_acceptance": [
+        0.774625,
+        0.6609649830563176,
+        0.611083984375,
+        0.6156612065521374,
+        0.627514600908501,
+        0.6504653567735263,
+        0.6422893481717011
+      ],
+      "independent_position_accuracy": [
+        0.774625,
+        0.580625,
+        0.4275,
+        0.32375,
+        0.26475,
+        0.262375,
+        0.19725
+      ]
+    },
+    "transcript_selected": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 17310,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.16375,
+      "acceptance_rate": 0.30910714285714286,
+      "t1_acceptance": 0.76875,
+      "prefix_acceptance": [
+        0.76875,
+        0.531,
+        0.340875,
+        0.220375,
+        0.14175,
+        0.096125,
+        0.064875
+      ],
+      "conditional_acceptance": [
+        0.76875,
+        0.6907317073170731,
+        0.6419491525423728,
+        0.6464979831316465,
+        0.6432217810550198,
+        0.6781305114638448,
+        0.6749024707412223
+      ],
+      "independent_position_accuracy": [
+        0.76875,
+        0.575125,
+        0.414875,
+        0.3045,
+        0.23925,
+        0.208125,
+        0.164875
+      ]
+    },
+    "transcript_unary": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 16327,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.040875,
+      "acceptance_rate": 0.2915535714285714,
+      "t1_acceptance": 0.772875,
+      "prefix_acceptance": [
+        0.772875,
+        0.51175,
+        0.313625,
+        0.194375,
+        0.121,
+        0.07825,
+        0.049
+      ],
+      "conditional_acceptance": [
+        0.772875,
+        0.6621381206534045,
+        0.6128480703468491,
+        0.6197688322040653,
+        0.622508038585209,
+        0.6466942148760331,
+        0.6261980830670927
+      ],
+      "independent_position_accuracy": [
+        0.772875,
+        0.579375,
+        0.426875,
+        0.323625,
+        0.264625,
+        0.26125,
+        0.196375
+      ]
+    },
+    "metric": "offline_cached_prefix_proxy",
+    "validation_images": 1000,
+    "anchors_per_image": 8,
+    "teacher_transcript_agreement": 0.9771964285714285,
+    "online_validated": false,
+    "limitation": "Later cached teacher labels follow the saved transcript, not a regenerated divergent teacher prefix.",
+    "epoch": 5,
+    "step": 2815,
+    "images_seen": 89990,
+    "full_epoch_completed": true,
+    "pilot": false
+  },
+  "selector_unchanged": true,
+  "online_validated": false,
+  "selection": "offline validation teacher_selected AL; confirm with real vLLM before recipe winner"
+}

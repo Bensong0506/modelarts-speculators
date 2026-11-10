@@ -1,0 +1,27 @@
+{
+  "checked_at": "2026-11-10T15:08:29.273575+00:00",
+  "cpu_components": {
+    "command": "python scripts/test_cached_dflash2_cpu.py",
+    "passed": 27
+  },
+  "archive_metrics": "18 online runs, exact 2000-resample paired intervals/output digest counts; three 2815-step logs; separate cached metrics recomputed successfully",
+  "plots": "Regenerated from archived logs; both PNG plots visually inspected",
+  "numeric_recipes": "All three templates match recorded run settings",
+  "shell_examples": "Three Bash blocks pass bash -n",
+  "privacy": "No private paths, host addresses, credentials, raw sample IDs, images, prompts or answer token IDs in public archive",
+  "ruff_check": "passed repository-wide",
+  "ruff_format": "passed repository-wide",
+  "mdformat": "passed repository-wide",
+  "changed_evaluator_mypy": "passed",
+  "provenance_sync": "passed",
+  "full_make_quality": {
+    "passed": false,
+    "failed_stage": "repository-wide mypy",
+    "errors": 93,
+    "files_with_errors": 48,
+    "cause": "Intel macOS environment lacks required upstream dependencies and has older incompatible torch APIs; same previously recorded environment limitation",
+    "required_followup": "Run full make quality in supported Linux development environment"
+  },
+  "gpu_execution_for_publication": false,
+  "commit_hook": "Direct checks run; single commit uses documented --no-verify bypass with DCO signoff; no claim that full hooks passed"
+}

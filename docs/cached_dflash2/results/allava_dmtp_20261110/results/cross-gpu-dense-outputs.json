@@ -1,0 +1,7 @@
+{
+  "requests": 100,
+  "changed": 0,
+  "identical_on_these_requests": true,
+  "differences": [],
+  "scope": "Exact token IDs and finish reasons on supplied requests; not a general losslessness proof."
+}

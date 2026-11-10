@@ -1,0 +1,15 @@
+{
+  "source_commit": "847b8c89f5786793efe726fe1e79ef1aeb3d2f02",
+  "evaluation_patch": "evaluation-startup-budget.patch",
+  "native_mtp_frozen": true,
+  "training_math_changed_for_publication": false,
+  "sanitization": [
+    "Personal filesystem paths replaced by named placeholders",
+    "Sample IDs replaced with stable validation indices",
+    "Per-request output IDs replaced by SHA256 of canonical token_ids/finish_reason JSON",
+    "Target config replaced by canonical SHA256",
+    "No platform/SSH state, credentials, images, prompts, answers or weight payloads"
+  ],
+  "source_snapshots": "provenance/*.txt are path-sanitized records, not executable scripts",
+  "training_log_hashes_preserved": true
+}

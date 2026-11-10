@@ -1,0 +1,119 @@
+{
+  "protocol_audit_passed": true,
+  "training": [
+    {
+      "arm": "token",
+      "updates": 2815,
+      "epochs": 5,
+      "selector_unchanged": true,
+      "log_sha256": "4bb1b34172c2f1904af357c2e65d20d23f0e7a71e55677c398b58dd86fadc9ce"
+    },
+    {
+      "arm": "fusion",
+      "updates": 2815,
+      "epochs": 5,
+      "selector_unchanged": true,
+      "log_sha256": "af4350f5f4fc162af2ad562e464a5bd5d2592d845e56c6e4eea2812acf57a95e"
+    }
+  ],
+  "online_runs": [
+    {
+      "run": "epoch-00-dense",
+      "gpu": 0,
+      "passed": true
+    },
+    {
+      "run": "epoch-00-token",
+      "gpu": 0,
+      "passed": true
+    },
+    {
+      "run": "epoch-00-fusion",
+      "gpu": 0,
+      "passed": true
+    },
+    {
+      "run": "epoch-01-dense",
+      "gpu": 1,
+      "passed": true
+    },
+    {
+      "run": "epoch-01-token",
+      "gpu": 1,
+      "passed": true
+    },
+    {
+      "run": "epoch-01-fusion",
+      "gpu": 1,
+      "passed": true
+    },
+    {
+      "run": "epoch-02-dense",
+      "gpu": 0,
+      "passed": true
+    },
+    {
+      "run": "epoch-02-token",
+      "gpu": 0,
+      "passed": true
+    },
+    {
+      "run": "epoch-02-fusion",
+      "gpu": 0,
+      "passed": true
+    },
+    {
+      "run": "epoch-03-dense",
+      "gpu": 1,
+      "passed": true
+    },
+    {
+      "run": "epoch-03-token",
+      "gpu": 1,
+      "passed": true
+    },
+    {
+      "run": "epoch-03-fusion",
+      "gpu": 1,
+      "passed": true
+    },
+    {
+      "run": "epoch-04-dense",
+      "gpu": 0,
+      "passed": true
+    },
+    {
+      "run": "epoch-04-token",
+      "gpu": 0,
+      "passed": true
+    },
+    {
+      "run": "epoch-04-fusion",
+      "gpu": 0,
+      "passed": true
+    },
+    {
+      "run": "epoch-05-dense",
+      "gpu": 1,
+      "passed": true
+    },
+    {
+      "run": "epoch-05-token",
+      "gpu": 1,
+      "passed": true
+    },
+    {
+      "run": "epoch-05-fusion",
+      "gpu": 1,
+      "passed": true
+    }
+  ],
+  "identical_target_hashes_for_all_18_runs": true,
+  "runtime": {
+    "base_commit": "bbf5893213eff1e1dc7bbe76ce410b31eaca1507",
+    "verified_overlay_files": 22
+  },
+  "all_12_dmtp_exports_bf16": true,
+  "lossless_output_equivalence_validated": false,
+  "scope": "Confirms submitted training/evaluation protocol and saved metadata. Does not override recorded target-only output differences."
+}

@@ -1,0 +1,9 @@
+# Timestamp: 2026-11-10T03:36:25.507512+00:00
+# Git SHA: 89f9f51d606f50dac1af334c1d3e0cd86fa6f6e2
+# World size: 1
+# speculators: 0.9.0a0
+# vllm: 0.31.0
+# transformers: 5.17.0
+# torch: 2.14.0a0+b2c75dd062.nv26.9.68203377
+# compressed-tensors: 0.17.0
+${REPO_ROOT}/src/speculators/train/cached_dflash2/__main__.py --config ${DENSE_RUN_ROOT}/control/full.yaml

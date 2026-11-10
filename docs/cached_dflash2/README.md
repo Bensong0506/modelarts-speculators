@@ -11,6 +11,7 @@
 - [同事 AI 接手入口](AI_HANDOFF.md)
 - [内网业务数据格式、缓存检查与训练命令](BUSINESS_DATA.md)
 - [验证记录](VALIDATION.md)
+- [2026-11-10 D-MTP 实跑结果、loss 曲线与复核代码](results/allava_dmtp_20261110/README.md)
 - [六个配方](../../examples/cached_dflash2)
 
 ## 对应结构

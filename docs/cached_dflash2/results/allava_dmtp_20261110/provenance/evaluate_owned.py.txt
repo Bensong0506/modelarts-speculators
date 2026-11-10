@@ -1,0 +1,39 @@
+"""Evaluate unchanged package code after reclaiming this run's weight file cache."""
+from pathlib import Path
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import time
+
+EXP=Path('${RUN_ROOT}')
+SSD=Path('${SSD_ROOT}')
+sys.path.insert(0,str(EXP/'repo/scripts'))
+import serve_cached_dflash2 as serving
+
+original=serving.prepare_runtime
+
+def snapshot():
+    return subprocess.check_output(['nvidia-smi','--query-gpu=index,uuid,memory.used,memory.free','--format=csv,noheader'],text=True).strip()
+
+def prepare(args,argv):
+    original(args,argv)
+    assert args.target.resolve()==SSD/'target'
+    paths=sorted(args.target.glob('*.safetensors'))
+    assert paths and all(p.stat().st_uid==os.getuid() for p in paths)
+    before=snapshot()
+    for p in paths:
+        with p.open('rb') as stream:
+            os.posix_fadvise(stream.fileno(),0,0,os.POSIX_FADV_DONTNEED)
+    time.sleep(2)
+    report={'scope':'POSIX_FADV_DONTNEED only for this run-owned SSD target weights after SHA256; no model/runtime math or settings changed',
+            'files':len(paths),'before':before,'after':snapshot(),
+            'wrapper_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+    (args.provenance_dir/'owned-cache-advice.json').write_text(json.dumps(report,indent=2)+'\n')
+    print(json.dumps(report),flush=True)
+
+serving.prepare_runtime=prepare
+import evaluate_cached_dflash2
+if __name__=='__main__':
+    evaluate_cached_dflash2.main()

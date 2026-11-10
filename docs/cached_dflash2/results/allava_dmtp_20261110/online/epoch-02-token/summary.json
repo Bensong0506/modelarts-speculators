@@ -1,0 +1,69 @@
+{
+  "completed": true,
+  "mode": "token",
+  "engine_kwargs": {
+    "model": "${SSD_ROOT}/target",
+    "dtype": "bfloat16",
+    "tensor_parallel_size": 1,
+    "max_model_len": 8192,
+    "max_num_seqs": 64,
+    "max_num_batched_tokens": 2048,
+    "kv_cache_memory_bytes": 34359738368,
+    "gpu_memory_utilization": 0.65,
+    "enable_prefix_caching": false,
+    "enforce_eager": false,
+    "block_size": 384,
+    "attention_config": {
+      "flash_attn_version": 2
+    },
+    "engram_config": {
+      "cpu_offload": false
+    },
+    "kernel_config": {
+      "moe_backend": "triton"
+    },
+    "limit_mm_per_prompt": {
+      "image": 1,
+      "video": 0
+    },
+    "mm_processor_kwargs": {
+      "size": {
+        "shortest_edge": 65536,
+        "longest_edge": 262144
+      }
+    },
+    "per_request_spec_decode_metrics": "summary",
+    "speculative_config": {
+      "method": "mtp",
+      "num_speculative_tokens": 7
+    },
+    "additional_config": {
+      "swx_dmtp": {
+        "model": "${RUN_ROOT}/full/token-kl-3e-5/epochs/epoch-02"
+      }
+    },
+    "compilation_config": {
+      "mode": 0,
+      "cudagraph_mode": "FULL_DECODE_ONLY"
+    }
+  },
+  "target_precision_operator_declared": "fp8",
+  "prompt_manifest_sha256": "664693225a9745c7ca70b334c0dab1661322ec91164158c5cdfaaecc05369322",
+  "repeats": [
+    {
+      "images": 100,
+      "seconds": 51.0335077480413,
+      "acceptance_rate": 0.24109486314210724,
+      "accepted_length": 2.6876640419947506,
+      "accepted_draft_tokens": 39866,
+      "proposed_tokens": 165354,
+      "verification_steps": 23622,
+      "tokens_per_second": 1244.7508079128283,
+      "repeat": 0,
+      "changed_vs_repeat0": null
+    }
+  ],
+  "scope": "Online image-conditioned greedy generation; AL includes bonus; output equivalence is a separate check.",
+  "target_config_canonical_sha256": "73707fe0a3259a2ee80f2f6ec7cb364cd3108a913b3f458aad58cb3f3bffdaca",
+  "public_archive_note": "Target config replaced by fingerprint; personal paths replaced by placeholders."
+}

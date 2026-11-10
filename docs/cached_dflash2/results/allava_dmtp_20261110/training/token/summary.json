@@ -1,0 +1,165 @@
+{
+  "completed": true,
+  "pilot_completed": false,
+  "arm": "token",
+  "epochs": 5,
+  "total_steps": 2815,
+  "images_seen": 89990,
+  "best_epoch": 5,
+  "best_validation": {
+    "teacher_selected": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 16986,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.12325,
+      "acceptance_rate": 0.3033214285714286,
+      "t1_acceptance": 0.751625,
+      "prefix_acceptance": [
+        0.751625,
+        0.521375,
+        0.334,
+        0.21725,
+        0.140625,
+        0.094125,
+        0.06425
+      ],
+      "conditional_acceptance": [
+        0.751625,
+        0.6936637285880592,
+        0.6406137616878447,
+        0.6504491017964071,
+        0.6472957422324511,
+        0.6693333333333333,
+        0.6826029216467463
+      ],
+      "independent_position_accuracy": [
+        0.751625,
+        0.56175,
+        0.4045,
+        0.303,
+        0.23575,
+        0.20775,
+        0.167375
+      ]
+    },
+    "teacher_unary": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 16456,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.057,
+      "acceptance_rate": 0.2938571428571429,
+      "t1_acceptance": 0.751625,
+      "prefix_acceptance": [
+        0.751625,
+        0.528375,
+        0.323375,
+        0.199125,
+        0.126375,
+        0.078375,
+        0.04975
+      ],
+      "conditional_acceptance": [
+        0.751625,
+        0.7029768834192582,
+        0.6120179796546014,
+        0.615771163509857,
+        0.6346516007532956,
+        0.6201780415430267,
+        0.6347687400318979
+      ],
+      "independent_position_accuracy": [
+        0.751625,
+        0.569125,
+        0.41775,
+        0.314,
+        0.26225,
+        0.257375,
+        0.1955
+      ]
+    },
+    "transcript_selected": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 17067,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.133375,
+      "acceptance_rate": 0.30476785714285715,
+      "t1_acceptance": 0.75175,
+      "prefix_acceptance": [
+        0.75175,
+        0.523375,
+        0.336625,
+        0.21925,
+        0.142375,
+        0.095625,
+        0.064375
+      ],
+      "conditional_acceptance": [
+        0.75175,
+        0.6962088460259395,
+        0.6431812753761643,
+        0.6513182324545117,
+        0.6493728620296465,
+        0.6716417910447762,
+        0.673202614379085
+      ],
+      "independent_position_accuracy": [
+        0.75175,
+        0.560625,
+        0.404,
+        0.302,
+        0.236125,
+        0.206625,
+        0.16675
+      ]
+    },
+    "transcript_unary": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 16496,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.062,
+      "acceptance_rate": 0.2945714285714286,
+      "t1_acceptance": 0.75175,
+      "prefix_acceptance": [
+        0.75175,
+        0.528625,
+        0.3245,
+        0.201375,
+        0.127625,
+        0.079,
+        0.049125
+      ],
+      "conditional_acceptance": [
+        0.75175,
+        0.7031925507149983,
+        0.6138567037124616,
+        0.6205701078582434,
+        0.6337678460583489,
+        0.6190009794319294,
+        0.6218354430379747
+      ],
+      "independent_position_accuracy": [
+        0.75175,
+        0.5665,
+        0.41625,
+        0.31475,
+        0.262625,
+        0.256375,
+        0.194375
+      ]
+    },
+    "metric": "offline_cached_prefix_proxy",
+    "validation_images": 1000,
+    "anchors_per_image": 8,
+    "teacher_transcript_agreement": 0.9771964285714285,
+    "online_validated": false,
+    "limitation": "Later cached teacher labels follow the saved transcript, not a regenerated divergent teacher prefix.",
+    "epoch": 5,
+    "step": 2815,
+    "images_seen": 89990,
+    "full_epoch_completed": true,
+    "pilot": false
+  },
+  "selector_unchanged": true,
+  "online_validated": false,
+  "selection": "offline validation teacher_selected AL; confirm with real vLLM before recipe winner"
+}

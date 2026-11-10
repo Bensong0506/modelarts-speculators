@@ -10,6 +10,8 @@
 
 This fork includes `speculators train-cached-dflash2` for matched dense ALLaVA and frozen-native-MTP token/fusion continuation. See the [training and inference guide](docs/cached_dflash2/README.md) and [AI handoff](docs/cached_dflash2/AI_HANDOFF.md). The D-MTP runtime requires the version-pinned private vLLM overlay; its historical cross-GPU output discrepancy remains unresolved.
 
+The [2026-11-10 experiment archive](docs/cached_dflash2/results/allava_dmtp_20261110/README.md) includes completed five-epoch training logs, all 18 matched 100-image online evaluations, loss/acceptance plots, sanitized provenance, and CPU metric verification. Fusion showed a small acceptance increase; target-only output equivalence remains unvalidated.
+
 ## Overview
 
 Speculators is a library for training speculative decoding draft models that deploy directly to LLM inference engines like vLLM. Speculative decoding is a lossless technique that speeds up LLM inference by using a smaller, faster draft model (i.e. "the speculator") to propose tokens, which are then verified by the larger base model, reducing latency without compromising output quality. The speculator intelligently drafts multiple tokens ahead of time, and the base model verifies them in a single forward pass. This approach boosts performance without sacrificing output quality, as every accepted token is guaranteed to match what the main model would have generated on its own.

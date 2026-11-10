@@ -120,6 +120,8 @@ Dense/token/fusion 必须使用同一 prompts、target、精度、采样、并�
 
 长评测可加 `--progress`，在日志里显示已完成的请求数量。它只影响进度显示，不改变推理配置；最终指标仍以完成后的 `summary.json` 为准。
 
+评测入口支持 `--gpu-memory-utilization`（默认 `0.92`，范围 `(0, 1]`）。2026-11-10 的三组同条件对照统一使用 `0.65`，同时显式固定 `--kv-cache-gib 32`；前者调整 vLLM 启动时的可用显存门限，不能把两者混为 KV 分配比例。完整命令、GB300 私有权重文件页缓存处理及逐轮结果见 [实跑归档](results/allava_dmtp_20261110/README.md)。
+
 输出 `requests.jsonl` 保留 token IDs 和接受计数；`summary.json` 的在线 AR 是 accepted/proposed，AL 是 `1 + accepted/verification_steps`。缺少底层计数会报错，不会以独立 token accuracy 冒充接受率。吞吐包含 multimodal prefill 和 decode，排除模型加载、读图和 warmup；当前不按吞吐选配方。
 
 ```bash

@@ -4,6 +4,8 @@
 
 本分支将 dense ALLaVA continuation 和 D-MTP token/fusion continuation 接入 Speculators 包，并提供固定私有 vLLM runtime 的推理工具。先读本目录 [README](README.md)、[训练契约](TRAINING.md)、[推理契约](VLLM_INFERENCE.md) 和 [实际验证记录](VALIDATION.md)。历史结果仅是快照，不能当成新分支已在 GPU 上重新训练的结果。
 
+**最新已完成记录：[2026-11-10 同设置 D-MTP 训练与 100 图逐轮在线对照](results/allava_dmtp_20261110/README.md)。** 包含两组五轮实跑、同预算 dense 参照、逐步 loss、18 次在线计数、曲线、脱敏命令/权重摘要以及 CPU 复核入口。第五轮 fusion 相比 dense 为 +0.446545 个百分点 AR、+0.031258 AL；仅单 seed、100 验证图，输出等价仍未通过。不要把该归档命令自动当作新任务执行。
+
 **接内网业务数据时，先完整阅读 [业务数据训练交接](BUSINESS_DATA.md)。** 其中给出 manifest/target cache/shared 的字段与形状、数据来源和 split 审计、业务 YAML、`--check-data`、独立 3 步 pilot、正式五轮训练、恢复与验收命令。已经做好兼容缓存时可以复用训练主体；只有图片/prompt/answer 或另一种格式的 Speculators 缓存时不能直接开训。尤其核对不足 16 tokens 的回答、多轮监督边界、业务实体隔离，以及 `--check-data` 不覆盖的目标来源/权重加载检查。
 
 这里没有数据、模型权重、SSH 配置、密钥或运行中的训练任务。实际目录、GPU 分配及 job 生命周期由操作者在自己的环境提供。先核对当前状态，再执行其本轮明确授权的工作；不要自动启动旧任务、停止别人的进程或改共享环境。
@@ -60,6 +62,6 @@
 
 提交前检查源码、测试、配方、文档和生成物链接，按根目录规则签署 DCO。不要重新上传个人运行目录。修改 overlay 时应作为新 runtime 版本，记录 base/diff/hash，并重新做 GPU 验证；不能只更新 SHA 来消除失败。
 
-2026-11-04 的预检查完成了导入、固定 runtime 摘要及 BF16 基础运算，并修复真实缓存 int32 IDs 兼容。2026-11-10 又完成了 dense 包内入口的真实五轮 GPU 训练，以及 epoch 0–5 各 100 验证图的在线评测；输出等价检查仍未通过，具体覆盖范围见 [验证记录](VALIDATION.md)。任务是否仍在运行，应核对操作者提供的实时平台状态与 PID，不能从静态文档推断卡已空闲。
+2026-11-04 的预检查完成了导入、固定 runtime 摘要及 BF16 基础运算，并修复真实缓存 int32 IDs 兼容。2026-11-10 已完成 dense 及两组 D-MTP 的包内五轮 GPU 训练；后续同环境对三组 epoch 0–5 各完成 100 验证图在线评测。输出等价仍未通过，具体覆盖范围见 [验证记录](VALIDATION.md)。任务是否仍在运行，应核对操作者提供的实时平台状态与 PID，不能从静态文档推断卡已空闲。
 
-目前仍待完成：D-MTP token/fusion 的新包 GPU 迁移回归、跨卡输出差异定位、BF16 target 对照、独立训练 seed 和更完整状态等价验证。Dense 的本轮验证不能替代这些项目，也不构成自动启动它们的授权。
+目前仍待完成：D-MTP 跨卡输出差异定位、BF16 target 对照、独立训练 seed、新增独立 test 和更完整状态等价验证。本轮额外跨 GPU 重复只覆盖 dense，不能替代这些项目，也不构成自动启动它们的授权。
