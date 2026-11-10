@@ -7,7 +7,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-INTEGRATION = Path(__file__).resolve().parents[1] / "integrations" / "vllm_dmtp"
+INTEGRATION = Path(__file__).resolve().parents[1] / "integrations" / "vllm_dflash2"
 
 
 def sha256(path):

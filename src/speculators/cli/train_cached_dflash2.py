@@ -1,4 +1,4 @@
-"""CLI adapter for image-identity-checked target/MTP caches."""
+"""CLI adapter for image-identity-checked dense DFlash2 target caches."""
 
 import typer
 

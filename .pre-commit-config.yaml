@@ -15,9 +15,9 @@ repos:
       - id: ruff-check
         args: [--fix]
         # Byte-preserved external runtime files are checked by SHA-256 instead.
-        exclude: ^integrations/vllm_dmtp/overlay/
+        exclude: ^integrations/vllm_dflash2/overlay/
       - id: ruff-format
-        exclude: ^integrations/vllm_dmtp/overlay/
+        exclude: ^integrations/vllm_dflash2/overlay/
   - repo: https://github.com/hukkin/mdformat
     # Keep in sync with the `mdformat` pin in pyproject.toml
     rev: 1.0.0

@@ -6,9 +6,11 @@
 
 </div>
 
-## ALLaVA continuation and D-MTP integration
+## Dense DFlash2 business-data continuation
 
-This fork includes `speculators train-cached-dflash2` for matched dense ALLaVA and frozen-native-MTP token/fusion continuation. See the [training and inference guide](docs/cached_dflash2/README.md) and [AI handoff](docs/cached_dflash2/AI_HANDOFF.md). The D-MTP runtime requires the version-pinned private vLLM overlay; its historical cross-GPU output discrepancy remains unresolved.
+This branch, `codex/dflash2-dense-business-training`, is the dense-only handoff for `speculators train-cached-dflash2`. Start with the [AI handoff](docs/cached_dflash2/AI_HANDOFF.md) and [business-data format, cache checks and training commands](docs/cached_dflash2/BUSINESS_DATA.md). It trains all seven draft positions and needs target caches only. The cached trainer rejects token/fusion recipes; serving and evaluation accept only `dense` or `target`.
+
+D-MTP development remains on [codex/dflash2-allava-dmtp-training](https://github.com/Bensong0506/modelarts-speculators/tree/codex/dflash2-allava-dmtp-training). This branch preserves the dense computation and fixed runtime dependency; it is not a new GPU training result. See [validation limits](docs/cached_dflash2/VALIDATION.md).
 
 ## Overview
 

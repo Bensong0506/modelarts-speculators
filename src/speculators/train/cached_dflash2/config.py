@@ -1,4 +1,4 @@
-"""Strict YAML/CLI configuration for one cached DFlash2 training arm."""
+"""Strict YAML/CLI configuration for dense DFlash2 business continuation."""
 
 import argparse
 import json
@@ -18,8 +18,7 @@ class CachedDFlash2Config(BaseModel):
     shared: Path
     manifest: Path
     output: Path
-    arm: Literal["dense", "token", "fusion"] = "dense"
-    fusion_init: Literal["replace", "residual-zero"] = "residual-zero"
+    arm: Literal["dense"] = "dense"
     objective: Literal["kl", "ce"] = "kl"
     lr: float = Field(default=3e-5, gt=0)
     device: str = "cuda"

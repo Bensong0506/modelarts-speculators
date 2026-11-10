@@ -1,1 +1,1 @@
-"""Audited cached-prefix DFlash2 / frozen-native-MTP continuation training."""
+"""Audited cached-prefix dense DFlash2 continuation training."""

@@ -1,8 +1,10 @@
 # Speculators — Agent Guide
 
-## Cached ALLaVA / D-MTP workflows
+## Dense business-data workflow
 
-For `train-cached-dflash2`, read [the colleague AI handoff](docs/cached_dflash2/AI_HANDOFF.md), then its training and vLLM inference guides. This is a separate audited cache pipeline; the hybrid runtime requires the pinned private vLLM overlay. Historical acceptance numbers are not new results from this branch, and unresolved output differences must remain visible.
+This is `codex/dflash2-dense-business-training`. For `train-cached-dflash2`, read [the AI handoff](docs/cached_dflash2/AI_HANDOFF.md) and [business-data guide](docs/cached_dflash2/BUSINESS_DATA.md). The cached trainer supports dense only, with target feature caches and seven predicted positions. Do not reintroduce token/fusion recipes here; D-MTP work stays on `codex/dflash2-allava-dmtp-training`.
+
+The byte-preserved private vLLM overlay is in `integrations/vllm_dflash2`; use `scripts/vllm_dflash2_runtime.py`. It retains the original vendor files for compatibility, including inactive MTP code. The branch's serving/evaluation wrappers reject hybrid modes. Do not alter vendor hashes to hide a failure. Cached metrics and inherited historical GPU results do not prove online output equivalence or a new customer-environment run.
 
 ## Pull requests
 

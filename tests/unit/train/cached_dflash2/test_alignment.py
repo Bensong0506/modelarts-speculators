@@ -1,8 +1,6 @@
-# Standalone unittest runner also works without the full repository test environment.
-# ruff: noqa: PT009, PT027
-"""Small behavioral checks for temporal alignment and the training interface."""
+# ruff: noqa: PT009
+"""Dense temporal alignment, seven-token supervision and checkpoint compatibility."""
 
-import copy
 import json
 import tempfile
 import unittest
@@ -11,17 +9,14 @@ from pathlib import Path
 import torch
 from safetensors.torch import load_file, save_file
 
-from speculators.train.cached_dflash2.data import ALIGNMENT, predictions
-from speculators.train.cached_dflash2.dmtp import (
-    AnchorFusion,
-    DMTPDraft,
-    block_attention,
-)
+from speculators.train.cached_dflash2.data import predictions
+from speculators.train.cached_dflash2.model import Draft
+from speculators.train.cached_dflash2.trainer import export_epoch
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def tiny_model(mode="fusion"):
+def tiny_model():
     torch.manual_seed(1102)
     config = {
         "hidden_size": 32,
@@ -44,7 +39,7 @@ def tiny_model(mode="fusion"):
         "embed_tokens.weight": torch.randn(64, 32) / 4,
         "lm_head.weight": torch.randn(64, 32) / 4,
     }
-    model = DMTPDraft(config, shared, mode)
+    model = Draft(config, shared)
     with torch.no_grad():
         for layer in model.layers:
             for conv in (layer.attention_conv, layer.mlp_conv):
@@ -57,120 +52,54 @@ def tiny_model(mode="fusion"):
 
 class TimingTests(unittest.TestCase):
     def setUp(self):
-        self.model, _ = tiny_model()
+        self.model, self.shared = tiny_model()
         self.features = torch.randn(1, 20, 64, device=DEVICE)
         self.tokens = torch.randint(0, 63, (1, 20), device=DEVICE)
         self.a = torch.tensor([[7]], device=DEVICE)
-        self.first = self.tokens[:, 8:9]
-        self.mtp = torch.randn(1, 1, 32, device=DEVICE)
 
     def test_future_target_features_have_zero_influence_and_gradient(self):
         self.features.requires_grad_()
-        out = self.model.backbone(
-            self.features, self.tokens, self.a, self.mtp, self.first
-        )
+        out = self.model.backbone(self.features, self.tokens, self.a)
         changed = self.features.detach().clone()
         changed[:, 7:] = torch.randn_like(changed[:, 7:]) * 20
-        other = self.model.backbone(changed, self.tokens, self.a, self.mtp, self.first)
+        other = self.model.backbone(changed, self.tokens, self.a)
         torch.testing.assert_close(out, other, rtol=0, atol=0)
         (grad,) = torch.autograd.grad(out.square().sum(), self.features)
         self.assertEqual(int(torch.count_nonzero(grad[:, 7:])), 0)
         self.assertGreater(float(grad[:, :7].norm()), 0)
 
-    def test_zero_residual_preserves_token_tail_then_learns(self):
-        self.model.anchor_fusion = AnchorFusion(32, residual=True).to(DEVICE)
-        token = copy.deepcopy(self.model)
-        token.mode = "token"
-        expected = token.backbone(
-            self.features, self.tokens, self.a, self.mtp, self.first
-        )
-        actual = self.model.backbone(
-            self.features, self.tokens, self.a, self.mtp, self.first
-        )
-        torch.testing.assert_close(actual, expected, rtol=0, atol=0)
-        (actual * torch.randn_like(actual)).sum().backward()
-        weight = self.model.anchor_fusion.projection.weight
-        self.assertGreater(float(weight.grad.norm()), 0)
-        with torch.no_grad():
-            weight.add_(weight.grad, alpha=-0.01)
-        changed = self.model.backbone(
-            self.features, self.tokens, self.a, self.mtp, self.first
-        )
-        self.assertFalse(torch.equal(changed, expected))
+    def test_supervision_uses_pending_token_and_seven_teacher_positions(self):
+        data = {"ids": self.tokens, "features": self.features}
+        hidden, index, first = predictions(self.model, data, self.a)
+        self.assertEqual(tuple(hidden.shape), (1, 7, 32))
+        torch.testing.assert_close(first, self.tokens[:, 7])
+        self.assertEqual(index.flatten().tolist(), [7, 8, 9, 10, 11, 12, 13])
 
-    def test_shifted_query_attention_matches_explicit_block_reference(self):
-        attn = self.model.layers[0].self_attn
-        x = torch.randn(2, 7, 32, device=DEVICE)
-        context = torch.randn(1, 20, 32, device=DEVICE)
-        # Reference uses original attention after moving forbidden target slots
-        # out of the visible context. At a+1 only the extra slot a needs masking.
-        qanchors = torch.tensor([8, 11], device=DEVICE)
-        ends = qanchors - 1
-        for window in [None, 6]:
-            actual = block_attention(attn, x, context, qanchors, ends, window)
-            expected = []
-            for i in range(2):
-                query = x[i : i + 1]
-                ctx = context[:, : ends[i]]
-                # Truncated context cannot reveal target feature at the pending A.
-                expected.append(
-                    attn.reference_forward(query, ctx, qanchors[i : i + 1], window)
-                )
-            torch.testing.assert_close(
-                actual, torch.cat(expected), rtol=2e-4, atol=2e-5
-            )
-
-    def test_inference_keeps_native_first_candidate_and_fusion_receives_gradients(self):
-        wrong_first = (self.first + 1) % 63
-        proposed = self.model.propose(
-            self.features, self.tokens, self.a, self.mtp, wrong_first
-        )
-        self.assertEqual(tuple(proposed.shape), (1, 7))
-        torch.testing.assert_close(proposed[:, 0], wrong_first.reshape(-1))
-        h = self.model.backbone(
-            self.features, self.tokens, self.a, self.mtp, self.first
-        )
-        h.square().mean().backward()
-        self.assertGreater(
-            float(self.model.anchor_fusion.projection.weight.grad.norm()), 0
-        )
-        self.assertIsNone(self.model.embed_tokens.weight.grad)
-        self.assertIsNone(self.model.lm_head.weight.grad)
-        with self.assertRaises(ValueError):
-            self.model.anchor_fusion(
-                torch.zeros(1, 32, device=DEVICE), torch.zeros(1, 128, device=DEVICE)
-            )
-
-    def test_training_and_evaluation_use_distinct_first_token_sources(self):
-        data = {
-            "ids": self.tokens,
-            "features": self.features,
-            "mtp_sample_hidden": torch.randn(1, 20, 32, device=DEVICE),
-            "mtp_token": (self.tokens + 2) % 63,
-        }
-        _, index, first_train = predictions(self.model, data, self.a, True)
-        _, _, first_eval = predictions(self.model, data, self.a, False)
-        torch.testing.assert_close(first_train, self.tokens[:, 8])
-        torch.testing.assert_close(first_eval, data["mtp_token"][:, 7])
-        self.assertEqual(index.flatten().tolist(), [8, 9, 10, 11, 12, 13])
-
-    def test_export_identifies_hybrid_and_roundtrips_all_fusion_weights(self):
+    def test_export_is_dense_and_roundtrips_without_shared_weights(self):
         with tempfile.TemporaryDirectory() as d:
-            out = Path(d) / "export"
-            self.model.export_hf(out)
+            root = Path(d)
+            out = export_epoch(self.model, root, 1)
             config = json.loads((out / "config.json").read_text())
-            self.assertEqual(config["architectures"], ["DMTPDFlash2DraftModel"])
-            self.assertFalse(config["dmtp"]["vllm_runtime_verified"])
-            restored, _ = tiny_model()
-            missing, extra = restored.load_state_dict(
-                load_file(str(out / "model.safetensors")), strict=False
+            self.assertEqual(config["architectures"], ["DFlash2DraftModel"])
+            self.assertNotIn("dmtp", config)
+            state = load_file(str(out / "model.safetensors"))
+            self.assertFalse(
+                any(
+                    k.startswith(("lm_head.", "embed_tokens.", "anchor_fusion."))
+                    for k in state
+                )
             )
-            self.assertEqual(set(missing), {"lm_head.weight", "embed_tokens.weight"})
-            self.assertFalse(extra)
+            shared = root / "shared.pt"
+            torch.save(self.shared, shared)
+            restored = Draft.load(out, shared, DEVICE)
+            for name, expected in state.items():
+                torch.testing.assert_close(
+                    restored.state_dict()[name], expected.to(DEVICE), rtol=0, atol=0
+                )
 
 
 def make_fixture(dest):
-    """Synthetic CPU-sized weights and caches, solely for pipeline tests."""
+    """Synthetic CPU-sized dense weights and target caches; no MTP sidecars."""
     dest.mkdir(parents=True, exist_ok=False)
     model, shared = tiny_model()
     base = dest / "dense"
@@ -179,7 +108,7 @@ def make_fixture(dest):
     state = {
         k: v.detach().cpu().to(torch.bfloat16).contiguous()
         for k, v in model.state_dict().items()
-        if not k.startswith(("anchor_fusion.", "embed_tokens.", "lm_head."))
+        if not k.startswith(("embed_tokens.", "lm_head."))
     }
     save_file(state, str(base / "model.safetensors"))
     torch.save({k: v.bfloat16() for k, v in shared.items()}, dest / "shared.pt")
@@ -187,7 +116,6 @@ def make_fixture(dest):
     for i in range(8):
         ids = torch.randint(0, 63, (32,))
         path = dest / f"target-{i}.pt"
-        mtp = dest / f"mtp-{i}.pt"
         torch.save(
             {
                 "ids": ids.int(),
@@ -198,24 +126,10 @@ def make_fixture(dest):
             },
             path,
         )
-        torch.save(
-            {
-                "ids": ids,
-                "mtp_sample_hidden": torch.randn(32, 32).bfloat16(),
-                "mtp_token": torch.randint(0, 63, (32,)),
-                "mtp_valid": torch.ones(32, dtype=torch.bool),
-                "alignment": ALIGNMENT,
-                "history": "native_causal_target_aligned",
-                "image_sha256": f"synthetic-{i}",
-                "synthetic_test_only": True,
-            },
-            mtp,
-        )
         records.append(
             {
                 "id": f"synthetic-{i}",
                 "path": str(path),
-                "mtp_path": str(mtp),
                 "tokens": 32,
                 "prompt_length": 8,
                 "split": "train" if i < 6 else "val",

@@ -17,13 +17,13 @@ speculators train-cached-dflash2 --help
 
 输入包括：
 
-1. 同一初始 dense checkpoint：`config.json` + `model.safetensors`。所有组从它出发；D-MTP 不是在 dense epoch 5 上再多训五轮。
+1. 同一初始 dense checkpoint：`config.json` + `model.safetensors`。所有 dense 配方从明确记录的同一初始化出发。
 2. `shared.pt`：字典 `embed_tokens.weight` / `lm_head.weight`，形状均为 `[vocab_size, hidden_size]`；从同一目标权重提取并冻结。
-3. manifest JSON 数组，以及它指向的 target cache；D-MTP 还需要 native MTP sidecar。支持相对 manifest 的缓存路径，便于迁移。
+3. manifest JSON 数组，以及它指向的 target cache。支持相对 manifest 的缓存路径，便于迁移。
 
 报告中应注明初始 checkpoint 的训练历史和权重摘要。`epoch-00` 表示本轮起点：如果输入已经经过 ALLaVA 增训，后续指标衡量的是继续增训的变化，不能把它称为相对未增训原始 DFlash2 的总收益。
 
-这不是直接读取图片 JSONL 的 SFT。预处理顺序为：按图像身份划分 train/val/test → 目标 Qwen 读取图片和问题、蒸馏回答 → 同一 tokenizer/chat template/图像预处理下采集 target hidden → D-MTP 另外采集 native causal MTP hidden/token → 合并对齐 manifest。既有采集程序在[历史归档 source](https://github.com/Bensong0506/speculators-wenxuan/tree/bb5a1b1a4dbf97d4cd968f011a97fb458f229dc7/research/allava20k_finetune_20261104/02_dflash2_dmtp/source/experiments)中；本命令消费其缓存，不会自动下载数据或调用其他服务。
+这不是直接读取图片 JSONL 的 SFT。预处理顺序为：按图像身份划分 train/val/test → 目标 Qwen 读取图片和问题、蒸馏回答 → 同一 tokenizer/chat template/图像预处理下采集 target hidden → 合并对齐 manifest。既有采集程序在[历史归档 source](https://github.com/Bensong0506/speculators-wenxuan/tree/bb5a1b1a4dbf97d4cd968f011a97fb458f229dc7/research/allava20k_finetune_20261104/02_dflash2_dmtp/source/experiments)中；本命令消费其缓存，不会自动下载数据或调用其他服务。
 
 ## 文件格式
 
@@ -37,13 +37,12 @@ Manifest 示例（实际文件为 JSON 数组）：
     "image_sha256": "sha256-of-the-original-image-bytes",
     "tokens": 1024,
     "prompt_length": 600,
-    "path": "target/sample-1.pt",
-    "mtp_path": "native-mtp/sample-1.pt"
+    "path": "target/sample-1.pt"
   }
 ]
 ```
 
-需要非空且图像身份互不相交的 train/val；test 不用于选 checkpoint。重复 sample ID 或跨 split 图像重复会报错。`tokens - prompt_length < 16` 的样本在训练/验证中排除并记录。可加入 `sha256` / `mtp_sha256`，让 `--check-data` 核对 cache 文件本身的摘要。
+需要非空且图像身份互不相交的 train/val；test 不用于选 checkpoint。重复 sample ID 或跨 split 图像重复会报错。`tokens - prompt_length < 16` 的样本在训练/验证中排除并记录。可加入 `sha256`，让 `--check-data` 核对 cache 文件本身的摘要。
 
 Target `.pt` 使用 `torch.load(weights_only=True)`，包含：
 
@@ -55,15 +54,7 @@ Target `.pt` 使用 `torch.load(weights_only=True)`，包含：
 | prompt_length  | int                                 | assistant 区域起点，必须与 manifest 一致                         |
 | image_sha256   | str                                 | 原图身份，必须与 manifest 一致                                   |
 
-MTP `.pt` 必须含相同 `ids`、`image_sha256`，以及：
-
-- `mtp_sample_hidden`: `[L, H]` BF16，原生 MTP 的单流 LM-head 输入。
-- `mtp_token`: `[L]` int64，该 hidden 给出的首个候选。
-- `mtp_valid`: `[L]` bool，标记采集成功的位置；所选 anchor 必须有效。
-- `history`: `native_causal_target_aligned`。
-- `alignment`: `pending_A_at_a__target_HC_at_a-1__predict_T1_at_a+1`。
-
-Anchor `a` 表示已发出但尚待 target 处理的 A：目标 context 严格截止 `a-1`。native MTP hidden 必须是在 A 和 `HC[a-1]` 下预测 T1 的状态，不能用消费 T1 后的 hidden，也不能用 target 最后一层 hidden 替代。D-MTP 的 query RoPE 为 `a+1…a+7`，可见 target context 仍是 `<a`。不要为提高接受率而放开这个边界。
+Anchor `a` 表示已发出但尚待 target 处理的 A：目标 context 严格截止 `a-1`。Dense 输入 A 加七个 mask，监督 hidden 下标为 `a…a+6`，预测后七个 token；不得引入未来 target 特征。
 
 `cache_target_precision` 是操作者声明的采集条件，不能单凭 BF16 hidden dtype 推断目标权重是 BF16。历史缓存来自 FP8 目标；改标签不会把它变成 BF16 对照。需从采集 provenance 独立核实权重、量化、tokenizer、模板、图像预处理和 target layer IDs。
 
@@ -77,32 +68,31 @@ export EXPERIMENT_ROOT=/personal/runs/allava-recipes
 
 # CPU 完整扫描缓存，不启动训练、不创建 output。
 speculators train-cached-dflash2 \
-  --config examples/cached_dflash2/fusion-kl-3e-5.yaml --check-data
+  --config examples/cached_dflash2/dense-kl-3e-5.yaml --check-data
 
 # 先用独立目录做 3 步 pilot，不能把 pilot 当正式结果。
 CUDA_VISIBLE_DEVICES=0 speculators train-cached-dflash2 \
-  --config examples/cached_dflash2/fusion-kl-3e-5.yaml \
-  --output "$EXPERIMENT_ROOT/fusion-pilot" --pilot-steps 3 --pilot-val-images 8
+  --config examples/cached_dflash2/dense-kl-3e-5.yaml \
+  --output "$EXPERIMENT_ROOT/dense-pilot" --pilot-steps 3 --pilot-val-images 8
 
-# 正式运行：按需要选择 dense/token/fusion 配方。
+# 正式运行：选择 dense 的 KL/CE 与学习率配方。
 CUDA_VISIBLE_DEVICES=0 speculators train-cached-dflash2 \
-  --config examples/cached_dflash2/fusion-kl-3e-5.yaml
+  --config examples/cached_dflash2/dense-kl-3e-5.yaml
 
 # 从最后完整 epoch 恢复，输入/源码/配方必须与 provenance 一致。
 CUDA_VISIBLE_DEVICES=0 speculators train-cached-dflash2 \
-  --config "$EXPERIMENT_ROOT/fusion-kl-3e-5/run.yaml" --resume
+  --config "$EXPERIMENT_ROOT/dense-kl-3e-5/run.yaml" --resume
 
 python scripts/plot_cached_dflash2.py \
   "$EXPERIMENT_ROOT/dense-kl-3e-5" \
-  "$EXPERIMENT_ROOT/token-kl-3e-5" \
-  "$EXPERIMENT_ROOT/fusion-kl-3e-5" --output "$EXPERIMENT_ROOT/plots"
+  --output "$EXPERIMENT_ROOT/plots"
 ```
 
 绘图需要 matplotlib（可在独立绘图环境安装）；不需要模型或 GPU。配置的环境变量必须已设置，CLI 覆盖 YAML。输出目录首次必须不存在；已有输出只能通过 `--resume` 进入。文件锁避免两个训练器写同一目录。
 
 默认五轮、batch 上限 32、padded context budget 48000、每图 64 training anchors、验证 8 anchors、seed 280、20% linear warmup 后 linear decay。历史 17998 个有效 train 样本的每轮为 563 步，共 2815；换数据/长度后以 provenance 生成的 batch plan 为准，不硬编码这个步数。
 
-使用 FP32 trainable master weights/Adam，BF16 autocast，冻结 embedding、LM head、candidate selector。KL 为同前缀 full-vocab teacher 分布；CE 标签是同前缀 teacher argmax，**不是 transcript ID**。位置权重为 `exp(-slot/4)` 后归一到均值 1；dense 七位、D-MTP 后六位。head 按 128 hidden rows 分块计算完整 vocabulary；不会只在 top-16 内算 KL。top-16 用于冻结 selector 的候选选择。
+使用 FP32 trainable master weights/Adam，BF16 autocast，冻结 embedding、LM head、candidate selector。KL 为同前缀 full-vocab teacher 分布；CE 标签是同前缀 teacher argmax，**不是 transcript ID**。位置权重为 `exp(-slot/4)` 后归一到均值 1；dense 七位。head 按 128 hidden rows 分块计算完整 vocabulary；不会只在 top-16 内算 KL。top-16 用于冻结 selector 的候选选择。
 
 `memory_limit_gib` 是本进程 PyTorch allocator 上限，非目标显存占用；CUDA 启动要求另留 16 GiB。提高 batch/context/anchors 会改变实验配方，不能静默调大后与旧记录混用。
 

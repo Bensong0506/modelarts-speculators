@@ -44,8 +44,8 @@ class PipelineTests(unittest.TestCase):
             eval_anchors=2,
         )
 
-    def test_all_arms_export_with_frozen_selector_and_valid_runtime_metadata(self):
-        for arm in ("dense", "token", "fusion"):
+    def test_dense_exports_with_frozen_selector_and_valid_runtime_metadata(self):
+        for arm in ("dense",):
             config = self.config(arm, arm)
             self.assertEqual(preflight(config)["planned_updates"], 4)
             with contextlib.redirect_stdout(io.StringIO()):
@@ -66,10 +66,7 @@ class PipelineTests(unittest.TestCase):
             exported = json.loads(
                 (config.output / "epochs/epoch-02/config.json").read_text()
             )
-            self.assertEqual("dmtp" in exported, arm != "dense")
-            if arm != "dense":
-                self.assertEqual(exported["dmtp"]["mode"], arm)
-                self.assertFalse(exported["dmtp"]["vllm_runtime_verified"])
+            self.assertNotIn("dmtp", exported)
             for artifact in (
                 "run.yaml",
                 "train_command.txt",
@@ -79,7 +76,7 @@ class PipelineTests(unittest.TestCase):
                 self.assertTrue((config.output / artifact).is_file())
 
     def test_interrupt_mid_epoch_then_resume_matches_uninterrupted_weights(self):
-        config = self.config("fusion", "interrupted")
+        config = self.config("dense", "interrupted")
         from speculators.train.cached_dflash2 import trainer  # noqa: PLC0415
 
         original = trainer.cache.predictions
@@ -87,7 +84,7 @@ class PipelineTests(unittest.TestCase):
 
         def fail_mid_epoch(*args, **kwargs):
             nonlocal training_calls
-            if args[-1] is True:
+            if args[0].training:
                 training_calls += 1
                 if training_calls == 4:
                     raise RuntimeError("simulated interruption")
@@ -102,7 +99,7 @@ class PipelineTests(unittest.TestCase):
         config.resume = True
         with contextlib.redirect_stdout(io.StringIO()):
             train(config)
-            reference = self.config("fusion", "reference")
+            reference = self.config("dense", "reference")
             train(reference)
         actual_weights = load_file(
             str(config.output / "epochs/epoch-02/model.safetensors")
@@ -125,34 +122,46 @@ class PipelineTests(unittest.TestCase):
         row = records[0].copy()
         row["prompt_length"] += 1
         with self.assertRaisesRegex(ValueError, "Prompt boundary"):
-            load_row(row, False, 32)
+            load_row(row, 32)
         records[-1]["image_sha256"] = records[0]["image_sha256"]
         manifest.write_text(json.dumps(records))
         with self.assertRaisesRegex(ValueError, "leakage"):
-            read_manifest(manifest, True, True)
+            read_manifest(manifest, True)
 
     def test_yaml_cli_override_and_unknown_field_rejection(self):
         config = self.config()
         path = self.root / "config.yaml"
         config.save(path)
-        actual = resolve(["--config", str(path), "--lr", "1e-5", "--arm", "token"])
+        actual = resolve(["--config", str(path), "--lr", "1e-5", "--arm", "dense"])
         self.assertEqual(actual.lr, 1e-5)
-        self.assertEqual(actual.arm, "token")
+        self.assertEqual(actual.arm, "dense")
         with path.open("a") as file:
             file.write("typo_lr: 0.01\n")
         with self.assertRaises(ValueError):
             resolve(["--config", str(path)])
 
-    def test_int32_target_ids_match_int64_native_sidecars_and_reject_floats(self):
+    def test_hybrid_recipes_are_rejected_before_output_creation(self):
+        path = self.root / "config.yaml"
+        self.config().save(path)
+        for arm in ("token", "fusion"):
+            with self.assertRaises(ValueError):
+                resolve(["--config", str(path), "--arm", arm])
+        with path.open("a") as file:
+            file.write("fusion_init: residual-zero\n")
+        with self.assertRaises(ValueError):
+            resolve(["--config", str(path)])
+        self.assertFalse((self.root / "run").exists())
+
+    def test_int32_target_ids_are_canonicalized_and_floats_rejected(self):
         row = json.loads((self.data / "manifest.json").read_text())[0]
-        loaded = load_row(row, True, 32)
+        loaded = load_row(row, 32)
         self.assertEqual(loaded["ids"].dtype, torch.int64)
         raw = torch.load(row["path"], weights_only=True)
         self.assertEqual(raw["ids"].dtype, torch.int32)
         raw["ids"] = raw["ids"].float()
         torch.save(raw, row["path"])
         with self.assertRaisesRegex(ValueError, "int32/int64"):
-            load_row(row, True, 32)
+            load_row(row, 32)
 
     def test_corrupt_durable_log_fails_instead_of_silently_losing_history(self):
         (self.root / "train.jsonl").write_text('{"step": 1}\n{"step": 1}\n')

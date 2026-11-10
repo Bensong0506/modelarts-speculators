@@ -1,6 +1,6 @@
 # 内网业务数据训练交接
 
-本指南对应分支 `codex/dflash2-allava-dmtp-training` 的 `speculators train-cached-dflash2`。训练内容可以是业务数据，不要求 ALLaVA；**能直接训练的输入是下面定义的目标模型特征缓存，不是图片/prompt/answer JSONL，也不能默认兼容其他 Speculators 缓存格式。** 本指南提供数据接入与执行步骤，没有声称已在接收方的内网数据或硬件上验证。
+本指南对应分支 `codex/dflash2-dense-business-training` 的 `speculators train-cached-dflash2`。训练内容可以是业务数据，不要求 ALLaVA；**能直接训练的输入是下面定义的目标模型特征缓存，不是图片/prompt/answer JSONL，也不能默认兼容其他 Speculators 缓存格式。** 本指南提供数据接入与执行步骤，没有声称已在接收方的内网数据或硬件上验证。
 
 ## 同事 AI 的执行顺序
 
@@ -66,7 +66,7 @@
 ]
 ```
 
-`id` 必须全局唯一；`split` 只能是 `train`、`val`、`test`。`tokens=L`，`0 < prompt_length < L`。`sha256` 是可选字段，填写后 `--check-data` 会核验缓存文件字节；不要填占位符或用图像摘要代替缓存摘要。Dense 不需要 `mtp_path`。
+`id` 必须全局唯一；`split` 只能是 `train`、`val`、`test`。`tokens=L`，`0 < prompt_length < L`。`sha256` 是可选字段，填写后 `--check-data` 会核验缓存文件字节；不要填占位符或用图像摘要代替缓存摘要。本分支不读取 MTP sidecar。
 
 Target `.pt` 应为 `torch.save` 保存的普通字典，可通过 `torch.load(..., weights_only=True)` 加载：
 
@@ -88,7 +88,7 @@ Dense anchor `a` 的可见 target context 严格为 `<a`，`ids[a]` 是已发出
 - **多轮与工具消息**：当前缓存只有一个 `prompt_length`，没有逐 token 的 assistant loss mask。可将每个要训练的 assistant 回答单独作为一条样本，之前的完整对话作为 prompt，该回答之后不再拼接 user/tool 消息；同一会话的样本留在同一 split。不能把所有轮次简单串起来让后续 user/tool token 进入监督区。
 - **多图、纯文本、视频**：当前身份契约围绕单图 `image_sha256`；这些输入不能用伪造图像 hash 冒充已适配。需要明确媒体身份、采集方式和在线评测入口，并额外检查任一共享媒体不跨 split。现有在线 wrapper 是单图输入，不能直接当作通用业务 evaluator。
 - **数据隔离**：自动检查只覆盖完全相同的 `image_sha256` 跨 split；文档不同页、同一客户/会话/订单、近重复图片等需在生成 manifest 前按业务分组划分，再保存分组审计结果。只增加 `group_id` 字段不会自动启用分组检查。
-- **长度与显存**：`context_token_budget` 约束训练 batch 的最大长度乘 batch size；单条 train 序列超出会报错，不会自动截断。该参数也不等于模型支持的最大上下文。验证 batch 单独受 `eval_batch_sequences` 控制，长验证样本可能需要减小它。
+- **长度与显存**：`context_token_budget` 约束训练 batch 的最大长度乘 batch size；单条 train/val 序列超出对应 batch plan 的预算会报错，不会自动截断。该参数也不等于模型支持的最大上下文。验证 batch 还受 `eval_batch_sequences` 控制，长验证样本可能需要减小它。
 
 ## 内网环境与业务配置
 
@@ -149,7 +149,7 @@ cat "$EXPERIMENT_ROOT/logs/check-data.json"
 
 正常返回 JSON，包含 `checked_records`、`train_images`、`planned_updates`、`cache_target_precision`。退出码必须为 0；步数由本次有效样本和 batch plan 决定，不能套用 ALLaVA 的 2815 步。
 
-`--check-data` 核对 ID/split、路径存在、图像跨集合重复、token/prompt 长度一致、hidden 形状/dtype/有限值、可选缓存摘要及训练 batch plan；D-MTP 还核对 sidecar 身份和有效 anchor。它**不会加载初始 safetensors 或 shared.pt 来证明兼容，不会核验 target 来源、特征层语义、全部 token ID 范围或业务分组，也不会证明 GPU 可运行**。这些来源条件需要人工/采集程序审计，权重加载和真实计算由下一步验证。
+`--check-data` 核对 ID/split、路径存在、图像跨集合重复、token/prompt 长度一致、hidden 形状/dtype/有限值、可选缓存摘要及训练 batch plan。它**不会加载初始 safetensors 或 shared.pt 来证明兼容，不会核验 target 来源、特征层语义、全部 token ID 范围或业务分组，也不会证明 GPU 可运行**。这些来源条件需要人工/采集程序审计，权重加载和真实计算由下一步验证。
 
 检查通过且数据审计完成后，在独立 output 做最多 3 次更新，使用最多 8 条有效验证样本；不复用 pilot 权重启动正式训练：
 
@@ -202,19 +202,3 @@ speculators train-cached-dflash2 \
 - `run.yaml`、`provenance.json`、`train_command.txt`、`speculators.patch`：保留在内网的复现依据。
 
 本路径的训练 loss 是 full-vocab KL，不包含冻结 selector 的 CE；这里的缓存验证不是原生 `Trainer.val_epoch` 的 total val loss。每图 8 个验证 anchor 也是缓存代理指标，不能当作整段在线接受率。最终应在同一批业务验证输入上比较本轮 epoch 0 与各 checkpoint，再用独立 test 复核；target 精度、模板、并发、输出长度和 runtime 条件保持一致。在线输出等价仍有已知未解决问题，见 [VALIDATION.md](VALIDATION.md)，不能因接受率上升就报告无损加速。
-
-## 需要 D-MTP 时的额外输入
-
-以上命令默认 dense。Token/fusion 除同一 dense 初始化、shared 和 target cache 外，每条 manifest 还需要 `mtp_path`（可选 `mtp_sha256`）。MTP `.pt` 必须有与 target 相同的 `ids`、`image_sha256`，并包含：
-
-| 字段                | 形状 / 值                                                       |
-| ------------------- | --------------------------------------------------------------- |
-| `mtp_sample_hidden` | `[L, H]` BF16，消费 pending A 后、消费 T1 前的单流 LM-head 输入 |
-| `mtp_token`         | `[L]` int64，相应首位候选                                       |
-| `mtp_valid`         | `[L]` bool；有效样本的被检查/采样 anchor 必须为真               |
-| `history`           | `native_causal_target_aligned`                                  |
-| `alignment`         | `pending_A_at_a__target_HC_at_a-1__predict_T1_at_a+1`           |
-
-不能用 target hidden 代替 native MTP hidden，也不能只加上述字符串伪造时序。原生 MTP 冻结；后段训练不会提高固定前缀上的原生 T1 能力。
-
-用独立配置/output 将 `arm` 改为 `token` 或 `fusion`；fusion 设置 `fusion_init: residual-zero`。每组都重新做本指南的缓存检查、pilot、正式运行，使用相同初始化/数据/更新预算。不要让三组写同一目录，也不要把 dense 业务 epoch 5 当作其他组起点而仍称等预算对照。新包 D-MTP 的 GPU 迁移回归仍需验证，不能把 dense 已运行视为该路径已验收。

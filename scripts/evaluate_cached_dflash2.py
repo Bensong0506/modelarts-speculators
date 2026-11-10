@@ -10,7 +10,7 @@ from pathlib import Path
 
 from PIL import Image
 from serve_cached_dflash2 import draft_options, prepare_runtime
-from vllm_dmtp_runtime import sha256
+from vllm_dflash2_runtime import sha256
 
 
 def image_for(row, base):
@@ -67,7 +67,7 @@ def main():  # noqa: C901
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--mode",
-        choices=["dense", "token", "fusion", "target", "native-mtp"],
+        choices=["dense", "target"],
         required=True,
     )
     parser.add_argument("--target", type=Path, required=True)

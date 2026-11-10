@@ -1,11 +1,10 @@
 # Paths are private and must be supplied by the operator.
-# All arms start from the SAME initial dense checkpoint, not dense epoch 5.
+# Dense recipes start from the same declared initial checkpoint.
 dense_checkpoint: ${DFLASH2_INITIAL}
 shared: ${DFLASH2_SHARED}
 manifest: ${ALLAVA_CACHE_MANIFEST}
 output: ${EXPERIMENT_ROOT}/dense-kl-1e-5
 arm: dense
-fusion_init: residual-zero
 objective: kl
 lr: 1e-5
 epochs: 5

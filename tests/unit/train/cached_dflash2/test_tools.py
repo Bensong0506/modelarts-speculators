@@ -25,7 +25,7 @@ def load_script(name):
 
 
 load_script("_provenance")
-runtime = load_script("vllm_dmtp_runtime")
+runtime = load_script("vllm_dflash2_runtime")
 serve = load_script("serve_cached_dflash2")
 evaluate = load_script("evaluate_cached_dflash2")
 comparison = load_script("compare_cached_dflash2_outputs")
@@ -96,33 +96,27 @@ class ToolTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "changed runtime"):
                     runtime.check_runtime(checkout)
 
-    def test_serving_uses_mtp_scheduler_and_custom_tail_only_for_hybrid(self):
+    def test_serving_accepts_dense_and_rejects_hybrid_modes_and_exports(self):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp)
-            metadata = {
-                "schema_version": 1,
-                "mode": "fusion",
-                "draft_input_slots": 7,
-                "proposed_tokens": 7,
-                "dflash_predicted_tokens": 6,
-                "mtp_hidden": "single_stream_before_first_candidate",
-                "target_context": "strictly_before_pending_A",
-                "requires_hybrid_vllm_proposer": True,
-            }
             (path / "config.json").write_text(
-                json.dumps(
-                    {"architectures": ["DMTPDFlash2DraftModel"], "dmtp": metadata}
-                )
+                json.dumps({"architectures": ["DFlash2DraftModel"]})
             )
-            spec, additional = serve.draft_options("fusion", path)
-            self.assertEqual(spec, {"method": "mtp", "num_speculative_tokens": 7})
-            self.assertEqual(additional["swx_dmtp"]["model"], str(path.resolve()))
-            with self.assertRaises(ValueError):
-                serve.draft_options("dense", path)
-            with self.assertRaises(ValueError):
-                serve.draft_options("token", path)
+            spec, additional = serve.draft_options("dense", path)
+            self.assertEqual(
+                spec,
+                {
+                    "method": "dflash",
+                    "num_speculative_tokens": 7,
+                    "model": str(path.resolve()),
+                },
+            )
+            self.assertIsNone(additional)
+            for mode in ("token", "fusion", "native-mtp"):
+                with self.assertRaisesRegex(ValueError, "only target or dense"):
+                    serve.draft_options(mode, path)
             args = SimpleNamespace(
-                mode="fusion",
+                mode="dense",
                 draft=path,
                 target=path,
                 batched_tokens=2048,
@@ -133,8 +127,19 @@ class ToolTests(unittest.TestCase):
                 port=8000,
             )
             argv = serve.command(args)
-            self.assertIn("--additional-config", argv)
+            self.assertNotIn("--additional-config", argv)
             self.assertIn("--enforce-eager", argv)
+            (path / "config.json").write_text(
+                json.dumps(
+                    {
+                        "architectures": ["DMTPDFlash2DraftModel"],
+                        "dmtp": {"mode": "fusion"},
+                    }
+                )
+            )
+            with self.assertRaisesRegex(ValueError, "Dense serving"):
+                serve.draft_options("dense", path)
+            self.assertEqual(serve.draft_options("target", None), (None, None))
 
     def test_online_counts_use_actual_proposals_and_verification_steps(self):
         records = [

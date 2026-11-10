@@ -26,7 +26,6 @@ from .common import (
     prefix_summary,
 )
 from .config import CachedDFlash2Config
-from .dmtp import DMTPDraft
 from .loss import frozen_head_loss, head_candidates
 from .model import Draft
 
@@ -71,28 +70,17 @@ def evaluate(model, records, args):
     for _, batch in epoch_plan(
         records, 1, args.eval_batch_sequences, args.context_token_budget, 0
     ):
-        data = cache.load_batch(
-            batch, args.arm != "dense", model.config["hidden_size"], args.device
-        )
+        data = cache.load_batch(batch, model.config["hidden_size"], args.device)
         anchors = cache.choose_anchors(data, args.eval_anchors)
         row = torch.arange(len(batch), device=args.device)[:, None, None]
         with torch.autocast(args.device.split(":")[0], dtype=torch.bfloat16):
-            hidden, index, first = cache.predictions(model, data, anchors, False)
+            hidden, index, first = cache.predictions(model, data, anchors)
             teacher = data["teacher_hidden"][row, index].reshape_as(hidden)
             candidates, logits, teacher_ids = head_candidates(
                 hidden, teacher, model.lm_head.weight
             )
             selected = selected_path(model, hidden, candidates, logits, first)
             unary = candidates[:, :, 0]
-            if args.arm != "dense":
-                selected = torch.cat([first[:, None], selected], 1)
-                unary = torch.cat([first[:, None], unary], 1)
-                # T1 verifier labels refer to the same pending-A prefix as native MTP.
-                t1 = data["teacher_hidden"][row.squeeze(-1), anchors].reshape(
-                    -1, 1, hidden.shape[-1]
-                )
-                _, _, t1_ids = head_candidates(t1, t1, model.lm_head.weight)
-                teacher_ids = torch.cat([t1_ids, teacher_ids], 1)
         transcript = data["ids"][
             row, anchors[:, :, None] + torch.arange(1, 8, device=args.device)
         ].reshape(-1, 7)
@@ -132,21 +120,6 @@ def export_epoch(model, output, epoch):
         if not k.startswith(("embed_tokens.", "lm_head."))
     }
     config = json.loads(json.dumps(model.config))
-    if isinstance(model, DMTPDraft):
-        config["architectures"] = ["DMTPDFlash2DraftModel"]
-        config["dflash_config"]["block_size"] = 7
-        config["dmtp"] = {
-            "schema_version": 1,
-            "mode": model.mode,
-            "draft_input_slots": 7,
-            "fusion_residual": model.fusion_residual,
-            "proposed_tokens": 7,
-            "dflash_predicted_tokens": 6,
-            "mtp_hidden": "single_stream_before_first_candidate",
-            "target_context": "strictly_before_pending_A",
-            "requires_hybrid_vllm_proposer": True,
-            "vllm_runtime_verified": False,
-        }
     save_file(state, str(temporary / "model.safetensors"), metadata={"format": "pt"})
     atomic_json(temporary / "config.json", config)
     atomic_json(
@@ -212,7 +185,7 @@ def train(a: CachedDFlash2Config):  # noqa: C901
     torch.set_num_threads(8)
     torch.manual_seed(a.seed)
     rng = random.Random(a.seed)
-    records = cache.read_manifest(a.manifest, a.arm != "dense", a.synthetic_smoke_test)
+    records = cache.read_manifest(a.manifest, a.synthetic_smoke_test)
     synthetic = [r["image_sha256"].startswith("synthetic-") for r in records]
     if any(synthetic) and (not a.synthetic_smoke_test or not all(synthetic)):
         raise ValueError(
@@ -246,17 +219,7 @@ def train(a: CachedDFlash2Config):  # noqa: C901
     epoch_steps = [sum(ep == e for ep, _ in plan) for e in range(1, a.epochs + 1)]
     total = len(plan)
     warmup = int(total * a.warmup_fraction)
-    model = (
-        Draft.load(a.dense_checkpoint, a.shared, a.device)
-        if a.arm == "dense"
-        else DMTPDraft.from_dense(
-            a.dense_checkpoint,
-            a.shared,
-            a.device,
-            mode=a.arm,
-            fusion_residual=a.arm == "fusion" and a.fusion_init == "residual-zero",
-        )
-    )
+    model = Draft.load(a.dense_checkpoint, a.shared, a.device)
     params = []
     for name, parameter in model.named_parameters():
         trainable = not name.startswith(FROZEN)
@@ -363,9 +326,7 @@ def train(a: CachedDFlash2Config):  # noqa: C901
             step = index + 1
             epoch, batch = plan[index]
             model.train()
-            data = cache.load_batch(
-                batch, a.arm != "dense", model.config["hidden_size"], a.device
-            )
+            data = cache.load_batch(batch, model.config["hidden_size"], a.device)
             anchors = cache.choose_anchors(data, a.anchors, rng)
             rows = torch.arange(len(batch), device=a.device)[:, None, None]
             lr = linear_lr(step, total, warmup, a.lr)
@@ -373,7 +334,7 @@ def train(a: CachedDFlash2Config):  # noqa: C901
                 group["lr"] = lr
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(a.device.split(":")[0], dtype=torch.bfloat16):
-                hidden, teacher_index, _ = cache.predictions(model, data, anchors, True)
+                hidden, teacher_index, _ = cache.predictions(model, data, anchors)
                 weights = torch.exp(-torch.arange(hidden.shape[1], device=a.device) / 4)
                 weights /= weights.mean()
                 teacher = data["teacher_hidden"][rows, teacher_index].reshape_as(hidden)

@@ -1,4 +1,4 @@
-"""Build and optionally launch the pinned dense/D-MTP vLLM OpenAI server."""
+"""Build and optionally launch the pinned dense DFlash2 vLLM OpenAI server."""
 
 import argparse
 import concurrent.futures
@@ -11,48 +11,27 @@ import sys
 from pathlib import Path
 
 from _provenance import git_diff, git_sha, package_versions
-from vllm_dmtp_runtime import check_runtime, sha256
+from vllm_dflash2_runtime import check_runtime, sha256
 
 
 def draft_options(mode, draft):
+    if mode not in ("target", "dense"):
+        raise ValueError("This branch supports only target or dense inference")
     if mode == "target":
         if draft:
             raise ValueError("Target-only mode does not take --draft")
         return None, None
-    if mode == "native-mtp":
-        if draft:
-            raise ValueError("Native MTP comes from the target; omit --draft")
-        return {"method": "mtp", "num_speculative_tokens": 1}, None
     if not draft:
         raise ValueError("--draft must name an exported epoch directory")
     draft = Path(draft).resolve()
     config = json.loads((draft / "config.json").read_text())
-    if mode == "dense":
-        if config.get("dmtp") or config.get("architectures") != ["DFlash2DraftModel"]:
-            raise ValueError("Dense serving needs a DFlash2DraftModel export")
-        return {
-            "method": "dflash",
-            "num_speculative_tokens": 7,
-            "model": str(draft),
-        }, None
-    metadata = config.get("dmtp", {})
-    required = {
-        "schema_version": 1,
-        "mode": mode,
-        "draft_input_slots": 7,
-        "proposed_tokens": 7,
-        "dflash_predicted_tokens": 6,
-        "mtp_hidden": "single_stream_before_first_candidate",
-        "target_context": "strictly_before_pending_A",
-        "requires_hybrid_vllm_proposer": True,
-    }
-    if config.get("architectures") != ["DMTPDFlash2DraftModel"] or any(
-        metadata.get(k) != v for k, v in required.items()
-    ):
-        raise ValueError("Mode or D-MTP checkpoint alignment contract mismatch")
-    return {"method": "mtp", "num_speculative_tokens": 7}, {
-        "swx_dmtp": {"model": str(draft)}
-    }
+    if config.get("dmtp") or config.get("architectures") != ["DFlash2DraftModel"]:
+        raise ValueError("Dense serving needs a DFlash2DraftModel export")
+    return {
+        "method": "dflash",
+        "num_speculative_tokens": 7,
+        "model": str(draft),
+    }, None
 
 
 def command(args):
@@ -182,7 +161,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--mode",
-        choices=["dense", "token", "fusion", "target", "native-mtp"],
+        choices=["dense", "target"],
         required=True,
     )
     parser.add_argument("--target", type=Path, required=True)
