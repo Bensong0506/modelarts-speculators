@@ -9,6 +9,7 @@
 - [训练与数据契约](TRAINING.md)
 - [vLLM 推理、接受指标及输出一致性](VLLM_INFERENCE.md)
 - [同事 AI 接手入口](AI_HANDOFF.md)
+- [内网业务数据格式、缓存检查与训练命令](BUSINESS_DATA.md)
 - [验证记录](VALIDATION.md)
 - [六个配方](../../examples/cached_dflash2)
 
