@@ -1,3 +1,5 @@
+> 当前分支新增 [DCORE 离线特性对照](FEATURE_DCORE.md)。下文原 dense 约定适用于关闭特性的路径；新结构、loss 和导出边界以特性指南为准。
+
 # 同事 AI 接手入口：dense 业务增训
 
 本分支：`codex/dflash2-dense-business-training`。当前任务是用内网业务数据继续训练普通 dense DFlash2，首位及后六位全部由 DFlash2 提出。训练入口为 `speculators train-cached-dflash2`，只接受 `arm: dense`；不需要原生 MTP sidecar。

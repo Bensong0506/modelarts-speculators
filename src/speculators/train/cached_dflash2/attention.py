@@ -21,7 +21,9 @@ def forward(module, x, context, anchors, window):
     )
     kc = rope(
         module.k_norm(
-            module.k_proj(context).reshape(contexts, length, module.nk, module.hd)
+            getattr(module, "k_proj_target", module.k_proj)(context).reshape(
+                contexts, length, module.nk, module.hd
+            )
         ),
         cpos,
     )
@@ -29,7 +31,9 @@ def forward(module, x, context, anchors, window):
         module.k_norm(module.k_proj(x).reshape(blocks, slots, module.nk, module.hd)),
         qpos,
     )
-    vc = module.v_proj(context).reshape(contexts, length, module.nk, module.hd)
+    vc = getattr(module, "v_proj_target", module.v_proj)(context).reshape(
+        contexts, length, module.nk, module.hd
+    )
     vn = module.v_proj(x).reshape(blocks, slots, module.nk, module.hd)
     q = q.reshape(contexts, per * slots, module.nq, module.hd)
     k = torch.cat([kc, kn.reshape(contexts, per * slots, module.nk, module.hd)], 1)

@@ -26,8 +26,8 @@ from .common import (
     prefix_summary,
 )
 from .config import CachedDFlash2Config
+from .dcore import DCoreDraft, dcore_loss
 from .loss import frozen_head_loss, head_candidates
-from .model import Draft
 
 FROZEN = ("embed_tokens.", "lm_head.", "candidate_selector.")
 
@@ -219,7 +219,9 @@ def train(a: CachedDFlash2Config):  # noqa: C901
     epoch_steps = [sum(ep == e for ep, _ in plan) for e in range(1, a.epochs + 1)]
     total = len(plan)
     warmup = int(total * a.warmup_fraction)
-    model = Draft.load(a.dense_checkpoint, a.shared, a.device)
+    model = DCoreDraft.load_feature(
+        a.dense_checkpoint, a.shared, a.device, a.dcore_context
+    )
     params = []
     for name, parameter in model.named_parameters():
         trainable = not name.startswith(FROZEN)
@@ -273,13 +275,13 @@ def train(a: CachedDFlash2Config):  # noqa: C901
         "tf32_matmul": torch.backends.cuda.matmul.allow_tf32,
         "trainable_parameters": sum(x.numel() for x in params),
         "frozen_components": list(FROZEN),
-        "ce_target": (
-            "cached verifier logits argmax at same prefix, never transcript IDs"
-        ),
+        "ce_target": ("transcript IDs for D-PACE; cached teacher argmax for CE"),
         "precision": (
             "FP32 master/Adam; BF16 autocast, frozen head and cached teacher features"
         ),
-        "loss_weights": "exp(-slot/4), normalized to mean one",
+        "loss_weights": "detached D-PACE suffix-confidence, sum normalized"
+        if a.objective == "dpace"
+        else "exp(-slot/4), mean one",
         "selection": (
             "validation teacher_selected prefix AL; vLLM confirmation required"
         ),
@@ -338,9 +340,17 @@ def train(a: CachedDFlash2Config):  # noqa: C901
                 weights = torch.exp(-torch.arange(hidden.shape[1], device=a.device) / 4)
                 weights /= weights.mean()
                 teacher = data["teacher_hidden"][rows, teacher_index].reshape_as(hidden)
-                loss, _, _ = frozen_head_loss(
-                    hidden, teacher, model.lm_head.weight, weights, a.objective
-                )
+                if a.objective == "dpace":
+                    labels = data["ids"][rows, teacher_index + 1].reshape(
+                        hidden.shape[:-1]
+                    )
+                    loss = dcore_loss(
+                        hidden, labels, model.lm_head.weight, a.dpace_alpha
+                    )
+                else:
+                    loss, _, _ = frozen_head_loss(
+                        hidden, teacher, model.lm_head.weight, weights, a.objective
+                    )
             if not torch.isfinite(loss):
                 raise FloatingPointError("Nonfinite training loss")
             loss.backward()

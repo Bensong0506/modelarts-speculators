@@ -19,7 +19,9 @@ class CachedDFlash2Config(BaseModel):
     manifest: Path
     output: Path
     arm: Literal["dense"] = "dense"
-    objective: Literal["kl", "ce"] = "kl"
+    objective: Literal["kl", "ce", "dpace"] = "kl"
+    dcore_context: bool = False
+    dpace_alpha: float = Field(default=0.5, ge=0, le=1)
     lr: float = Field(default=3e-5, gt=0)
     device: str = "cuda"
     epochs: int = Field(default=5, gt=0)
