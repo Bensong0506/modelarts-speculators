@@ -1,0 +1,8 @@
+# 2026-11-11T04:12:01.293072+00:00
+# git_sha: 257107b56109e915554dd1444c1b0ca3de2d9b1a
+# speculators: 0.9.0a0
+# vllm: 0.31.0
+# transformers: 5.17.0
+# torch: 2.14.0a0+b2c75dd062.nv26.9.68203377
+# compressed-tensors: 0.17.0
+${PYTHON} ${EXPERIMENT_ROOT}/control/evaluate_paired.py --kind dcore --run ${EXPERIMENT_ROOT}/full/dcore --checkpoint ${EXPERIMENT_ROOT}/full/dcore/epochs/epoch-05 --output ${EXPERIMENT_ROOT}/results/export-dcore-epoch05.json

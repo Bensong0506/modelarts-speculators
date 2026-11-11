@@ -1,0 +1,18 @@
+{
+  "cpu_component_tests_passed": 32,
+  "real_gpu_pilot_steps": 3,
+  "preflight_checked_records": 18998,
+  "aggregate_vs_per_image_evaluator": "exact on dense, DCore and DSpine synthetic exports",
+  "export_reload_tensor_tests": "passed",
+  "ruff": "passed (0.15.20)",
+  "mdformat": "passed with repository plugins",
+  "source_provenance_sync": "passed",
+  "targeted_mypy": "passed",
+  "full_make_quality": "blocked by pre-existing local dependency/old torch errors",
+  "full_mypy": {
+    "errors": 208,
+    "new": []
+  },
+  "base_mypy_errors": 208,
+  "online_validated": false
+}

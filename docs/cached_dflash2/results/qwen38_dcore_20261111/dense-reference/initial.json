@@ -1,0 +1,148 @@
+{
+  "teacher_selected": {
+    "blocks": 8000,
+    "accepted_draft_tokens": 16710,
+    "proposed_tokens": 56000,
+    "accepted_length": 3.08875,
+    "acceptance_rate": 0.2983928571428571,
+    "t1_acceptance": 0.765875,
+    "prefix_acceptance": [
+      0.765875,
+      0.519125,
+      0.325375,
+      0.205125,
+      0.1305,
+      0.086625,
+      0.056125
+    ],
+    "conditional_acceptance": [
+      0.765875,
+      0.677819487514281,
+      0.6267758247050325,
+      0.6304264310411064,
+      0.6361974405850092,
+      0.6637931034482759,
+      0.6479076479076479
+    ],
+    "independent_position_accuracy": [
+      0.765875,
+      0.56925,
+      0.409,
+      0.295875,
+      0.23275,
+      0.20375,
+      0.14875
+    ]
+  },
+  "teacher_unary": {
+    "blocks": 8000,
+    "accepted_draft_tokens": 15527,
+    "proposed_tokens": 56000,
+    "accepted_length": 2.940875,
+    "acceptance_rate": 0.2772678571428571,
+    "t1_acceptance": 0.768,
+    "prefix_acceptance": [
+      0.768,
+      0.4975,
+      0.293375,
+      0.17325,
+      0.1035,
+      0.0645,
+      0.04075
+    ],
+    "conditional_acceptance": [
+      0.768,
+      0.6477864583333334,
+      0.5896984924623115,
+      0.5905411163187048,
+      0.5974025974025974,
+      0.6231884057971014,
+      0.6317829457364341
+    ],
+    "independent_position_accuracy": [
+      0.768,
+      0.564375,
+      0.410625,
+      0.305,
+      0.247125,
+      0.25075,
+      0.1635
+    ]
+  },
+  "transcript_selected": {
+    "blocks": 8000,
+    "accepted_draft_tokens": 16784,
+    "proposed_tokens": 56000,
+    "accepted_length": 3.098,
+    "acceptance_rate": 0.2997142857142857,
+    "t1_acceptance": 0.764125,
+    "prefix_acceptance": [
+      0.764125,
+      0.5215,
+      0.32875,
+      0.20775,
+      0.131625,
+      0.0875,
+      0.05675
+    ],
+    "conditional_acceptance": [
+      0.764125,
+      0.6824799607394079,
+      0.6303930968360498,
+      0.6319391634980989,
+      0.6335740072202166,
+      0.6647673314339981,
+      0.6485714285714286
+    ],
+    "independent_position_accuracy": [
+      0.764125,
+      0.568625,
+      0.40975,
+      0.295625,
+      0.232625,
+      0.203,
+      0.1475
+    ]
+  },
+  "transcript_unary": {
+    "blocks": 8000,
+    "accepted_draft_tokens": 15530,
+    "proposed_tokens": 56000,
+    "accepted_length": 2.94125,
+    "acceptance_rate": 0.27732142857142855,
+    "t1_acceptance": 0.766,
+    "prefix_acceptance": [
+      0.766,
+      0.4975,
+      0.294375,
+      0.174375,
+      0.104125,
+      0.0645,
+      0.040375
+    ],
+    "conditional_acceptance": [
+      0.766,
+      0.6494778067885117,
+      0.5917085427135679,
+      0.5923566878980892,
+      0.5971326164874552,
+      0.6194477791116446,
+      0.625968992248062
+    ],
+    "independent_position_accuracy": [
+      0.766,
+      0.56375,
+      0.41025,
+      0.305375,
+      0.24725,
+      0.250125,
+      0.162375
+    ]
+  },
+  "metric": "offline_cached_prefix_proxy",
+  "validation_images": 1000,
+  "anchors_per_image": 8,
+  "teacher_transcript_agreement": 0.9771964285714285,
+  "online_validated": false,
+  "limitation": "Later cached teacher labels follow the saved transcript, not a regenerated divergent teacher prefix."
+}

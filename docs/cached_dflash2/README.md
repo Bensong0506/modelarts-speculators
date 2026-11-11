@@ -2,6 +2,8 @@
 
 # Dense DFlash2：ALLaVA 与内网业务增训
 
+本轮离线结果与复现计数见 [DCORE 结果](results/qwen38_dcore_20261111/README.md)。
+
 分支 `codex/dflash2-dense-business-training` 专用于普通 dense DFlash2 continuation。`speculators train-cached-dflash2` 读取 target 特征缓存，训练 backbone 预测七位草稿 token；target Qwen、共享 embedding/head 和 selector 保持冻结。它不对 Qwen 本体做业务 SFT。
 
 - [同事 AI 交接入口](AI_HANDOFF.md)

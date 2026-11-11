@@ -1,0 +1,6 @@
+{
+  "epoch": 0,
+  "source_run": "${DENSE_REFERENCE_ROOT}/full/dense-kl-3e-5",
+  "safetensors_sha256": "084522ee2b611c33dd97804c2f721ec19b2464e00d0d7adad650331667f598d4",
+  "online_validated": false
+}

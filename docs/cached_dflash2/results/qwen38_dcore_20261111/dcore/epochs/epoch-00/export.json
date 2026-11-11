@@ -1,0 +1,6 @@
+{
+  "epoch": 0,
+  "source_run": "${EXPERIMENT_ROOT}/full/dcore",
+  "safetensors_sha256": "bfb5786b3f2590b1da85830ee6f246af5a3f52c1e3aee4969cd09f34c8847a00",
+  "online_validated": false
+}

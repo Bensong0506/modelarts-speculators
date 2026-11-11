@@ -1,0 +1,9 @@
+# Timestamp: 2026-11-11T03:15:32.272409+00:00
+# Git SHA: 257107b56109e915554dd1444c1b0ca3de2d9b1a
+# World size: 1
+# speculators: 0.9.0a0
+# vllm: 0.31.0
+# transformers: 5.17.0
+# torch: 2.14.0a0+b2c75dd062.nv26.9.68203377
+# compressed-tensors: 0.17.0
+${EXPERIMENT_ROOT}/dcore/src/speculators/train/cached_dflash2/__main__.py --config ${EXPERIMENT_ROOT}/dcore/examples/cached_dflash2/feature-dcore.yaml

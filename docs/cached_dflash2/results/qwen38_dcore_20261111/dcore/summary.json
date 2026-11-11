@@ -1,0 +1,165 @@
+{
+  "completed": true,
+  "pilot_completed": false,
+  "arm": "dense",
+  "epochs": 5,
+  "total_steps": 2815,
+  "images_seen": 89990,
+  "best_epoch": 5,
+  "best_validation": {
+    "teacher_selected": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 17671,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.208875,
+      "acceptance_rate": 0.31555357142857143,
+      "t1_acceptance": 0.771375,
+      "prefix_acceptance": [
+        0.771375,
+        0.535125,
+        0.34775,
+        0.228125,
+        0.152125,
+        0.103,
+        0.071375
+      ],
+      "conditional_acceptance": [
+        0.771375,
+        0.6937287311618863,
+        0.6498481663162813,
+        0.6560028756290438,
+        0.6668493150684931,
+        0.6770747740345111,
+        0.6929611650485437
+      ],
+      "independent_position_accuracy": [
+        0.771375,
+        0.58225,
+        0.423625,
+        0.313875,
+        0.248125,
+        0.214,
+        0.162
+      ]
+    },
+    "teacher_unary": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 16965,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.120625,
+      "acceptance_rate": 0.30294642857142856,
+      "t1_acceptance": 0.775875,
+      "prefix_acceptance": [
+        0.775875,
+        0.51975,
+        0.325,
+        0.209625,
+        0.137625,
+        0.091375,
+        0.061375
+      ],
+      "conditional_acceptance": [
+        0.775875,
+        0.6698888351860802,
+        0.6253006253006252,
+        0.645,
+        0.6565295169946332,
+        0.6639418710263397,
+        0.6716826265389877
+      ],
+      "independent_position_accuracy": [
+        0.775875,
+        0.582875,
+        0.43225,
+        0.330125,
+        0.2715,
+        0.264625,
+        0.184
+      ]
+    },
+    "transcript_selected": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 17800,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.225,
+      "acceptance_rate": 0.31785714285714284,
+      "t1_acceptance": 0.770875,
+      "prefix_acceptance": [
+        0.770875,
+        0.537625,
+        0.353125,
+        0.232125,
+        0.154625,
+        0.104875,
+        0.07175
+      ],
+      "conditional_acceptance": [
+        0.770875,
+        0.6974217609858927,
+        0.6568239944199024,
+        0.6573451327433628,
+        0.6661281637049004,
+        0.6782538399353274,
+        0.6841477949940405
+      ],
+      "independent_position_accuracy": [
+        0.770875,
+        0.58175,
+        0.42525,
+        0.313375,
+        0.24875,
+        0.213125,
+        0.16125
+      ]
+    },
+    "transcript_unary": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 17019,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.127375,
+      "acceptance_rate": 0.3039107142857143,
+      "t1_acceptance": 0.7745,
+      "prefix_acceptance": [
+        0.7745,
+        0.52075,
+        0.328625,
+        0.212625,
+        0.13875,
+        0.091625,
+        0.0605
+      ],
+      "conditional_acceptance": [
+        0.7745,
+        0.6723692704970949,
+        0.6310609697551608,
+        0.6470140737923165,
+        0.6525573192239859,
+        0.6603603603603604,
+        0.660300136425648
+      ],
+      "independent_position_accuracy": [
+        0.7745,
+        0.582,
+        0.433125,
+        0.330625,
+        0.2715,
+        0.263625,
+        0.182875
+      ]
+    },
+    "metric": "offline_cached_prefix_proxy",
+    "validation_images": 1000,
+    "anchors_per_image": 8,
+    "teacher_transcript_agreement": 0.9771964285714285,
+    "online_validated": false,
+    "limitation": "Later cached teacher labels follow the saved transcript, not a regenerated divergent teacher prefix.",
+    "epoch": 5,
+    "step": 2815,
+    "images_seen": 89990,
+    "full_epoch_completed": true,
+    "pilot": false
+  },
+  "selector_unchanged": true,
+  "online_validated": false,
+  "selection": "offline validation teacher_selected AL; confirm with real vLLM before recipe winner"
+}

@@ -60,4 +60,4 @@ python scripts/compare_cached_prefix_counts.py \
 
 使用 `python scripts/test_cached_dflash2_cpu.py` 检查组件、FP32/BF16 loss梯度、未来信息边界、特性训练、断点恢复和导出。完整包导入和真实GPU小步训练另外记录。`--check-data` 校验缓存的形状、可选SHA、有限值和split；仍需核对目标权重/精度、tokenizer及采集 provenance。
 
-实现来源与许可见 [THIRD_PARTY_NOTICES](../../THIRD_PARTY_NOTICES.md)。真实实验结果完成后另附，未完成前不宣称提升。
+实现来源与许可见 [THIRD_PARTY_NOTICES](../../THIRD_PARTY_NOTICES.md)。本轮完整结果见 [离线实验报告](results/qwen38_dcore_20261111/README.md)。

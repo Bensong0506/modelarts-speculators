@@ -1,0 +1,2 @@
+# Preserve single-space blank context lines in the recorded unified patch.
+dense-reference/speculators.patch whitespace=-blank-at-eol
