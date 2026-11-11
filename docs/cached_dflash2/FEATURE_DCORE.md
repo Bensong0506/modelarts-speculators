@@ -37,6 +37,23 @@ python scripts/evaluate_cached_dcore.py \
 
 GPU/显存先按实时分配检查；本配方的160GiB allocator上限可在新实验中调整并记录。CPU仅允许显式 synthetic smoke。两分支各用独立环境或源码路径，不向同一 output 同时写入。
 
+## 逐图计数与配对复算
+
+`evaluate_cached_prefix_counts.py` 使用相同的固定验证 anchor，并保存每张图片的连续前缀计数和评估 provenance。`compare_cached_prefix_counts.py` 对同图的差值做图片级 bootstrap；不同训练 seed 的方差不包含在该区间中。
+
+```bash
+python scripts/evaluate_cached_prefix_counts.py --kind dcore \
+  --run "$EXPERIMENT_ROOT/dcore" \
+  --checkpoint "$EXPERIMENT_ROOT/dcore/epochs/epoch-05" \
+  --output "$EXPERIMENT_ROOT/epoch05-counts.json"
+python scripts/compare_cached_prefix_counts.py \
+  --input dense /personal/results/dense-counts.json \
+  --input dcore "$EXPERIMENT_ROOT/epoch05-counts.json" \
+  --reference dense --output "$EXPERIMENT_ROOT/paired-comparison.json"
+```
+
+缓存只搬迁目录时可传 `--manifest`；验证集身份、边界及缓存摘要必须与原 manifest 一致。此入口不会重新训练。
+
 ## 导出与验证边界
 
 导出使用独立 architecture 标识，支持本分支 `load_export` 和上述离线评估脚本，且 `serving_verified=false`。继承的 vLLM wrapper 会拒绝这个新结构；本轮不实现 serving。重新加载校验不能当作在线推理通过。纯 dense、未开启特性的旧流程继续适用旧文档。
