@@ -1,0 +1,8 @@
+# 2026-11-11T04:13:21.573770+00:00
+# git_sha: 257107b56109e915554dd1444c1b0ca3de2d9b1a
+# speculators: 0.9.0a0
+# vllm: 0.31.0
+# transformers: 5.17.0
+# torch: 2.14.0a0+b2c75dd062.nv26.9.68203377
+# compressed-tensors: 0.17.0
+${PYTHON} ${EXPERIMENT_ROOT}/control/evaluate_paired.py --kind dense --run ${DENSE_REFERENCE_ROOT}/full/dense-kl-3e-5 --checkpoint ${DENSE_REFERENCE_ROOT}/full/dense-kl-3e-5/epochs/epoch-05 --output ${EXPERIMENT_ROOT}/results/export-dense-reference-epoch05.json --manifest ${ALLAVA_CACHE_MANIFEST}

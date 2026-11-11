@@ -10,6 +10,8 @@
 
 ## Dense DFlash2 business-data continuation
 
+本轮离线结果与复现计数见 [DSpine 结果](docs/cached_dflash2/results/qwen38_dspine_20261111/README.md)。
+
 This branch, `codex/dflash2-dense-business-training`, is the dense-only handoff for `speculators train-cached-dflash2`. Start with the [AI handoff](docs/cached_dflash2/AI_HANDOFF.md) and [business-data format, cache checks and training commands](docs/cached_dflash2/BUSINESS_DATA.md). It trains all seven draft positions and needs target caches only. The cached trainer rejects token/fusion recipes; serving and evaluation accept only `dense` or `target`.
 
 D-MTP development remains on [codex/dflash2-allava-dmtp-training](https://github.com/Bensong0506/modelarts-speculators/tree/codex/dflash2-allava-dmtp-training). This branch preserves the dense computation and fixed runtime dependency; it is not a new GPU training result. See [validation limits](docs/cached_dflash2/VALIDATION.md).

@@ -1,0 +1,6 @@
+{
+  "epoch": 2,
+  "source_run": "${EXPERIMENT_ROOT}/full/dspine",
+  "safetensors_sha256": "975044414820a85ae0fe632f381193c3ba4ca66e7314c29c16ba891114a80a00",
+  "online_validated": false
+}

@@ -1,0 +1,165 @@
+{
+  "completed": true,
+  "pilot_completed": false,
+  "arm": "dense",
+  "epochs": 5,
+  "total_steps": 2815,
+  "images_seen": 89990,
+  "best_epoch": 5,
+  "best_validation": {
+    "teacher_selected": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 17231,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.153875,
+      "acceptance_rate": 0.3076964285714286,
+      "t1_acceptance": 0.772375,
+      "prefix_acceptance": [
+        0.772375,
+        0.527375,
+        0.3365,
+        0.216125,
+        0.14175,
+        0.09475,
+        0.065
+      ],
+      "conditional_acceptance": [
+        0.772375,
+        0.6827965690241139,
+        0.638065892391562,
+        0.6422734026745914,
+        0.6558704453441295,
+        0.6684303350970018,
+        0.6860158311345647
+      ],
+      "independent_position_accuracy": [
+        0.772375,
+        0.584125,
+        0.423125,
+        0.313125,
+        0.24975,
+        0.217875,
+        0.179125
+      ]
+    },
+    "teacher_unary": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 16509,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.063625,
+      "acceptance_rate": 0.29480357142857144,
+      "t1_acceptance": 0.772375,
+      "prefix_acceptance": [
+        0.772375,
+        0.512875,
+        0.3165,
+        0.19925,
+        0.124875,
+        0.082,
+        0.05575
+      ],
+      "conditional_acceptance": [
+        0.772375,
+        0.6640233047418677,
+        0.617109432122837,
+        0.6295418641390206,
+        0.6267252195734002,
+        0.6566566566566566,
+        0.6798780487804879
+      ],
+      "independent_position_accuracy": [
+        0.772375,
+        0.577,
+        0.430625,
+        0.33125,
+        0.26925,
+        0.272375,
+        0.1975
+      ]
+    },
+    "transcript_selected": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 17326,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.16575,
+      "acceptance_rate": 0.30939285714285714,
+      "t1_acceptance": 0.771875,
+      "prefix_acceptance": [
+        0.771875,
+        0.52925,
+        0.34075,
+        0.218875,
+        0.144375,
+        0.0955,
+        0.065125
+      ],
+      "conditional_acceptance": [
+        0.771875,
+        0.6856680161943319,
+        0.6438356164383562,
+        0.6423330887747616,
+        0.6596230725299829,
+        0.6614718614718614,
+        0.6819371727748691
+      ],
+      "independent_position_accuracy": [
+        0.771875,
+        0.5845,
+        0.4245,
+        0.31325,
+        0.2505,
+        0.21675,
+        0.1785
+      ]
+    },
+    "transcript_unary": {
+      "blocks": 8000,
+      "accepted_draft_tokens": 16503,
+      "proposed_tokens": 56000,
+      "accepted_length": 3.062875,
+      "acceptance_rate": 0.2946964285714286,
+      "t1_acceptance": 0.771875,
+      "prefix_acceptance": [
+        0.771875,
+        0.51325,
+        0.3175,
+        0.20025,
+        0.124625,
+        0.080875,
+        0.0545
+      ],
+      "conditional_acceptance": [
+        0.771875,
+        0.6649392712550607,
+        0.6186069167072576,
+        0.6307086614173228,
+        0.6223470661672909,
+        0.6489468405215647,
+        0.6738794435857806
+      ],
+      "independent_position_accuracy": [
+        0.771875,
+        0.577875,
+        0.431375,
+        0.33075,
+        0.269,
+        0.270875,
+        0.19625
+      ]
+    },
+    "metric": "offline_cached_prefix_proxy",
+    "validation_images": 1000,
+    "anchors_per_image": 8,
+    "teacher_transcript_agreement": 0.9771964285714285,
+    "online_validated": false,
+    "limitation": "Later cached teacher labels follow the saved transcript, not a regenerated divergent teacher prefix.",
+    "epoch": 5,
+    "step": 2815,
+    "images_seen": 89990,
+    "full_epoch_completed": true,
+    "pilot": false
+  },
+  "selector_unchanged": true,
+  "online_validated": false,
+  "selection": "offline validation teacher_selected AL; confirm with real vLLM before recipe winner"
+}

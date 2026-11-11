@@ -1,0 +1,6 @@
+{
+  "epoch": 5,
+  "source_run": "${EXPERIMENT_ROOT}/full/dspine-causal-control",
+  "safetensors_sha256": "94b769fd3f582da67f645e6282f7ea19c883971273a7b76f81d37ccee897b92d",
+  "online_validated": false
+}

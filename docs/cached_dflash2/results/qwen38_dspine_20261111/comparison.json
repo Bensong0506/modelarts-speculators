@@ -1,0 +1,1518 @@
+{
+  "target_model": "Qwen3.8-Flash-Next-FP8",
+  "feature_scope": "existing DFlash2 draft, five cached target layers",
+  "hardware": "NVIDIA GB300",
+  "analysis_numpy": "2.5.4",
+  "analysis_matplotlib": "3.11.2",
+  "metric": "offline_cached_prefix_proxy",
+  "primary_checkpoint": "epoch-05 reloaded BF16 export",
+  "training_epochs": 5,
+  "training_steps": 2815,
+  "train_images": 17998,
+  "validation_images": 1000,
+  "anchors_per_image": 8,
+  "seed": 280,
+  "online_validated": false,
+  "historical_dense_training_reused": true,
+  "matched_provenance": {
+    "initial_weights_sha256": "1c53030eca739770f91dfcef55c487523e6c734e83be62a8838c0da9e392ca1e",
+    "initial_config_sha256": "2409575986f9ea24d455343eb469c0e6940def5edab1d1be503bb8eb4cc3b1b9",
+    "shared_weights_sha256": "2e553e7456c19e17c8007829ec789f402601c03b9a9f96147d905287b1c61c18",
+    "selector_sha256": "919cd8f73ae6f22a47a3bc7f76c054d1bbc8fe315d9c358e1a8f1082ccab6343",
+    "train_images": 17998,
+    "validation_images": 1000,
+    "epoch_steps": [
+      563,
+      563,
+      563,
+      563,
+      563
+    ],
+    "total_steps": 2815,
+    "warmup_steps": 563,
+    "examples_sha256": "37f7600b95d1dee7de0c1b11f9e87bd4ef859fe659e5797cb347e722def90063",
+    "batch_plan_sha256": "08651e273b5c60cf440e2091dc00b886da23c6da291a2190fcc7e7812226ac33"
+  },
+  "arms": {
+    "dense-reference": {
+      "label": "Dense KL (historical training)",
+      "initial": {
+        "teacher_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16710,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.08875,
+          "acceptance_rate": 0.2983928571428571,
+          "t1_acceptance": 0.765875,
+          "prefix_acceptance": [
+            0.765875,
+            0.519125,
+            0.325375,
+            0.205125,
+            0.1305,
+            0.086625,
+            0.056125
+          ],
+          "conditional_acceptance": [
+            0.765875,
+            0.677819487514281,
+            0.6267758247050325,
+            0.6304264310411064,
+            0.6361974405850092,
+            0.6637931034482759,
+            0.6479076479076479
+          ],
+          "independent_position_accuracy": [
+            0.765875,
+            0.56925,
+            0.409,
+            0.295875,
+            0.23275,
+            0.20375,
+            0.14875
+          ]
+        },
+        "teacher_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 15527,
+          "proposed_tokens": 56000,
+          "accepted_length": 2.940875,
+          "acceptance_rate": 0.2772678571428571,
+          "t1_acceptance": 0.768,
+          "prefix_acceptance": [
+            0.768,
+            0.4975,
+            0.293375,
+            0.17325,
+            0.1035,
+            0.0645,
+            0.04075
+          ],
+          "conditional_acceptance": [
+            0.768,
+            0.6477864583333334,
+            0.5896984924623115,
+            0.5905411163187048,
+            0.5974025974025974,
+            0.6231884057971014,
+            0.6317829457364341
+          ],
+          "independent_position_accuracy": [
+            0.768,
+            0.564375,
+            0.410625,
+            0.305,
+            0.247125,
+            0.25075,
+            0.1635
+          ]
+        },
+        "transcript_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16784,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.098,
+          "acceptance_rate": 0.2997142857142857,
+          "t1_acceptance": 0.764125,
+          "prefix_acceptance": [
+            0.764125,
+            0.5215,
+            0.32875,
+            0.20775,
+            0.131625,
+            0.0875,
+            0.05675
+          ],
+          "conditional_acceptance": [
+            0.764125,
+            0.6824799607394079,
+            0.6303930968360498,
+            0.6319391634980989,
+            0.6335740072202166,
+            0.6647673314339981,
+            0.6485714285714286
+          ],
+          "independent_position_accuracy": [
+            0.764125,
+            0.568625,
+            0.40975,
+            0.295625,
+            0.232625,
+            0.203,
+            0.1475
+          ]
+        },
+        "transcript_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 15530,
+          "proposed_tokens": 56000,
+          "accepted_length": 2.94125,
+          "acceptance_rate": 0.27732142857142855,
+          "t1_acceptance": 0.766,
+          "prefix_acceptance": [
+            0.766,
+            0.4975,
+            0.294375,
+            0.174375,
+            0.104125,
+            0.0645,
+            0.040375
+          ],
+          "conditional_acceptance": [
+            0.766,
+            0.6494778067885117,
+            0.5917085427135679,
+            0.5923566878980892,
+            0.5971326164874552,
+            0.6194477791116446,
+            0.625968992248062
+          ],
+          "independent_position_accuracy": [
+            0.766,
+            0.56375,
+            0.41025,
+            0.305375,
+            0.24725,
+            0.250125,
+            0.162375
+          ]
+        }
+      },
+      "training_final": {
+        "teacher_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 17204,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.1505,
+          "acceptance_rate": 0.3072142857142857,
+          "t1_acceptance": 0.7695,
+          "prefix_acceptance": [
+            0.7695,
+            0.528375,
+            0.33675,
+            0.21625,
+            0.140375,
+            0.0945,
+            0.06475
+          ],
+          "conditional_acceptance": [
+            0.7695,
+            0.6866471734892787,
+            0.6373314407381121,
+            0.6421677802524127,
+            0.6491329479768786,
+            0.6731967943009796,
+            0.6851851851851852
+          ],
+          "independent_position_accuracy": [
+            0.7695,
+            0.5755,
+            0.415125,
+            0.304375,
+            0.239,
+            0.208625,
+            0.166
+          ]
+        },
+        "teacher_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16337,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.042125,
+          "acceptance_rate": 0.2917321428571429,
+          "t1_acceptance": 0.774625,
+          "prefix_acceptance": [
+            0.774625,
+            0.512,
+            0.312875,
+            0.192625,
+            0.120875,
+            0.078625,
+            0.0505
+          ],
+          "conditional_acceptance": [
+            0.774625,
+            0.6609649830563176,
+            0.611083984375,
+            0.6156612065521374,
+            0.627514600908501,
+            0.6504653567735263,
+            0.6422893481717011
+          ],
+          "independent_position_accuracy": [
+            0.774625,
+            0.580625,
+            0.4275,
+            0.32375,
+            0.26475,
+            0.262375,
+            0.19725
+          ]
+        },
+        "transcript_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 17310,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.16375,
+          "acceptance_rate": 0.30910714285714286,
+          "t1_acceptance": 0.76875,
+          "prefix_acceptance": [
+            0.76875,
+            0.531,
+            0.340875,
+            0.220375,
+            0.14175,
+            0.096125,
+            0.064875
+          ],
+          "conditional_acceptance": [
+            0.76875,
+            0.6907317073170731,
+            0.6419491525423728,
+            0.6464979831316465,
+            0.6432217810550198,
+            0.6781305114638448,
+            0.6749024707412223
+          ],
+          "independent_position_accuracy": [
+            0.76875,
+            0.575125,
+            0.414875,
+            0.3045,
+            0.23925,
+            0.208125,
+            0.164875
+          ]
+        },
+        "transcript_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16327,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.040875,
+          "acceptance_rate": 0.2915535714285714,
+          "t1_acceptance": 0.772875,
+          "prefix_acceptance": [
+            0.772875,
+            0.51175,
+            0.313625,
+            0.194375,
+            0.121,
+            0.07825,
+            0.049
+          ],
+          "conditional_acceptance": [
+            0.772875,
+            0.6621381206534045,
+            0.6128480703468491,
+            0.6197688322040653,
+            0.622508038585209,
+            0.6466942148760331,
+            0.6261980830670927
+          ],
+          "independent_position_accuracy": [
+            0.772875,
+            0.579375,
+            0.426875,
+            0.323625,
+            0.264625,
+            0.26125,
+            0.196375
+          ]
+        },
+        "metric": "offline_cached_prefix_proxy",
+        "validation_images": 1000,
+        "anchors_per_image": 8,
+        "teacher_transcript_agreement": 0.9771964285714285,
+        "online_validated": false,
+        "limitation": "Later cached teacher labels follow the saved transcript, not a regenerated divergent teacher prefix.",
+        "epoch": 5,
+        "step": 2815,
+        "images_seen": 89990,
+        "full_epoch_completed": true,
+        "pilot": false
+      },
+      "export_final": {
+        "teacher_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 17204,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.1505,
+          "acceptance_rate": 0.3072142857142857,
+          "t1_acceptance": 0.7695,
+          "prefix_acceptance": [
+            0.7695,
+            0.528375,
+            0.33675,
+            0.21625,
+            0.140375,
+            0.0945,
+            0.06475
+          ],
+          "conditional_acceptance": [
+            0.7695,
+            0.6866471734892787,
+            0.6373314407381121,
+            0.6421677802524127,
+            0.6491329479768786,
+            0.6731967943009796,
+            0.6851851851851852
+          ],
+          "independent_position_accuracy": [
+            0.7695,
+            0.5755,
+            0.415125,
+            0.304375,
+            0.239,
+            0.208625,
+            0.166
+          ]
+        },
+        "teacher_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16337,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.042125,
+          "acceptance_rate": 0.2917321428571429,
+          "t1_acceptance": 0.774625,
+          "prefix_acceptance": [
+            0.774625,
+            0.512,
+            0.312875,
+            0.192625,
+            0.120875,
+            0.078625,
+            0.0505
+          ],
+          "conditional_acceptance": [
+            0.774625,
+            0.6609649830563176,
+            0.611083984375,
+            0.6156612065521374,
+            0.627514600908501,
+            0.6504653567735263,
+            0.6422893481717011
+          ],
+          "independent_position_accuracy": [
+            0.774625,
+            0.580625,
+            0.4275,
+            0.32375,
+            0.26475,
+            0.262375,
+            0.19725
+          ]
+        },
+        "transcript_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 17310,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.16375,
+          "acceptance_rate": 0.30910714285714286,
+          "t1_acceptance": 0.76875,
+          "prefix_acceptance": [
+            0.76875,
+            0.531,
+            0.340875,
+            0.220375,
+            0.14175,
+            0.096125,
+            0.064875
+          ],
+          "conditional_acceptance": [
+            0.76875,
+            0.6907317073170731,
+            0.6419491525423728,
+            0.6464979831316465,
+            0.6432217810550198,
+            0.6781305114638448,
+            0.6749024707412223
+          ],
+          "independent_position_accuracy": [
+            0.76875,
+            0.575125,
+            0.414875,
+            0.3045,
+            0.23925,
+            0.208125,
+            0.164875
+          ]
+        },
+        "transcript_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16327,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.040875,
+          "acceptance_rate": 0.2915535714285714,
+          "t1_acceptance": 0.772875,
+          "prefix_acceptance": [
+            0.772875,
+            0.51175,
+            0.313625,
+            0.194375,
+            0.121,
+            0.07825,
+            0.049
+          ],
+          "conditional_acceptance": [
+            0.772875,
+            0.6621381206534045,
+            0.6128480703468491,
+            0.6197688322040653,
+            0.622508038585209,
+            0.6466942148760331,
+            0.6261980830670927
+          ],
+          "independent_position_accuracy": [
+            0.772875,
+            0.579375,
+            0.426875,
+            0.323625,
+            0.264625,
+            0.26125,
+            0.196375
+          ]
+        },
+        "metric": "offline_cached_prefix_proxy",
+        "validation_images": 1000,
+        "anchors_per_image": 8,
+        "teacher_transcript_agreement": 0.9771964285714285,
+        "online_validated": false,
+        "checkpoint_sha256": "facc11f39c35f8d8348586dcad2bb1bad9f832a2d9ae7e757ff2f5193debfd07",
+        "kind": "dense",
+        "precision": "reloaded BF16 export"
+      },
+      "export_provenance": {
+        "git_sha": "257107b56109e915554dd1444c1b0ca3de2d9b1a",
+        "patch": "",
+        "argv": [
+          "${EXPERIMENT_ROOT}/control/evaluate_paired.py",
+          "--kind",
+          "dense",
+          "--run",
+          "${DENSE_REFERENCE_ROOT}/full/dense-kl-3e-5",
+          "--checkpoint",
+          "${DENSE_REFERENCE_ROOT}/full/dense-kl-3e-5/epochs/epoch-05",
+          "--output",
+          "${EXPERIMENT_ROOT}/results/export-dense-reference-epoch05.json",
+          "--manifest",
+          "${ALLAVA_CACHE_MANIFEST}"
+        ],
+        "time_utc": "2026-11-11T04:13:21.573770+00:00",
+        "packages": [
+          "# speculators: 0.9.0a0",
+          "# vllm: 0.31.0",
+          "# transformers: 5.17.0",
+          "# torch: 2.14.0a0+b2c75dd062.nv26.9.68203377",
+          "# compressed-tensors: 0.17.0"
+        ],
+        "torch_version": "2.14.0a0+b2c75dd062.nv26.09",
+        "cuda_version": "13.4",
+        "tf32_matmul": true,
+        "script_sha256": "ce5eb5fcf0102ce2e590fbf9177218d6dfceca71f5527fea006302d5080203dd",
+        "manifest_sha256": "cfe2721823da42ea86d6b9a3f2c4e38136a506b634f1f8ae47e534511d3392cc"
+      },
+      "training_best_epoch_exploratory": 5
+    },
+    "dspine-causal-control": {
+      "label": "Causal CE/L1 control",
+      "initial": {
+        "teacher_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 13817,
+          "proposed_tokens": 56000,
+          "accepted_length": 2.727125,
+          "acceptance_rate": 0.24673214285714284,
+          "t1_acceptance": 0.734875,
+          "prefix_acceptance": [
+            0.734875,
+            0.45325,
+            0.249125,
+            0.1395,
+            0.078625,
+            0.046375,
+            0.025375
+          ],
+          "conditional_acceptance": [
+            0.734875,
+            0.6167715597890798,
+            0.5496414782129068,
+            0.559959859508279,
+            0.5636200716845878,
+            0.589825119236884,
+            0.5471698113207547
+          ],
+          "independent_position_accuracy": [
+            0.734875,
+            0.526,
+            0.368875,
+            0.269625,
+            0.22125,
+            0.220125,
+            0.135625
+          ]
+        },
+        "teacher_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 13817,
+          "proposed_tokens": 56000,
+          "accepted_length": 2.727125,
+          "acceptance_rate": 0.24673214285714284,
+          "t1_acceptance": 0.734875,
+          "prefix_acceptance": [
+            0.734875,
+            0.45325,
+            0.249125,
+            0.1395,
+            0.078625,
+            0.046375,
+            0.025375
+          ],
+          "conditional_acceptance": [
+            0.734875,
+            0.6167715597890798,
+            0.5496414782129068,
+            0.559959859508279,
+            0.5636200716845878,
+            0.589825119236884,
+            0.5471698113207547
+          ],
+          "independent_position_accuracy": [
+            0.734875,
+            0.526,
+            0.368875,
+            0.269625,
+            0.22125,
+            0.220125,
+            0.135625
+          ]
+        },
+        "transcript_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 13833,
+          "proposed_tokens": 56000,
+          "accepted_length": 2.729125,
+          "acceptance_rate": 0.24701785714285715,
+          "t1_acceptance": 0.733875,
+          "prefix_acceptance": [
+            0.733875,
+            0.4545,
+            0.25,
+            0.14025,
+            0.079,
+            0.046375,
+            0.025125
+          ],
+          "conditional_acceptance": [
+            0.733875,
+            0.6193152784874808,
+            0.5500550055005501,
+            0.561,
+            0.5632798573975044,
+            0.5870253164556962,
+            0.5417789757412399
+          ],
+          "independent_position_accuracy": [
+            0.733875,
+            0.52725,
+            0.368125,
+            0.269625,
+            0.221375,
+            0.21925,
+            0.13475
+          ]
+        },
+        "transcript_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 13833,
+          "proposed_tokens": 56000,
+          "accepted_length": 2.729125,
+          "acceptance_rate": 0.24701785714285715,
+          "t1_acceptance": 0.733875,
+          "prefix_acceptance": [
+            0.733875,
+            0.4545,
+            0.25,
+            0.14025,
+            0.079,
+            0.046375,
+            0.025125
+          ],
+          "conditional_acceptance": [
+            0.733875,
+            0.6193152784874808,
+            0.5500550055005501,
+            0.561,
+            0.5632798573975044,
+            0.5870253164556962,
+            0.5417789757412399
+          ],
+          "independent_position_accuracy": [
+            0.733875,
+            0.52725,
+            0.368125,
+            0.269625,
+            0.221375,
+            0.21925,
+            0.13475
+          ]
+        }
+      },
+      "training_final": {
+        "teacher_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16657,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.082125,
+          "acceptance_rate": 0.29744642857142856,
+          "t1_acceptance": 0.773875,
+          "prefix_acceptance": [
+            0.773875,
+            0.516,
+            0.31925,
+            0.202,
+            0.128625,
+            0.084875,
+            0.0575
+          ],
+          "conditional_acceptance": [
+            0.773875,
+            0.6667743498627039,
+            0.6187015503875969,
+            0.6327329678935004,
+            0.6367574257425742,
+            0.6598639455782312,
+            0.6774668630338734
+          ],
+          "independent_position_accuracy": [
+            0.773875,
+            0.579875,
+            0.433125,
+            0.32775,
+            0.27125,
+            0.272625,
+            0.19625
+          ]
+        },
+        "teacher_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16657,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.082125,
+          "acceptance_rate": 0.29744642857142856,
+          "t1_acceptance": 0.773875,
+          "prefix_acceptance": [
+            0.773875,
+            0.516,
+            0.31925,
+            0.202,
+            0.128625,
+            0.084875,
+            0.0575
+          ],
+          "conditional_acceptance": [
+            0.773875,
+            0.6667743498627039,
+            0.6187015503875969,
+            0.6327329678935004,
+            0.6367574257425742,
+            0.6598639455782312,
+            0.6774668630338734
+          ],
+          "independent_position_accuracy": [
+            0.773875,
+            0.579875,
+            0.433125,
+            0.32775,
+            0.27125,
+            0.272625,
+            0.19625
+          ]
+        },
+        "transcript_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16664,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.083,
+          "acceptance_rate": 0.2975714285714286,
+          "t1_acceptance": 0.77225,
+          "prefix_acceptance": [
+            0.77225,
+            0.51625,
+            0.321,
+            0.20375,
+            0.129125,
+            0.08425,
+            0.056375
+          ],
+          "conditional_acceptance": [
+            0.77225,
+            0.6685011330527679,
+            0.6217917675544794,
+            0.6347352024922118,
+            0.6337423312883436,
+            0.6524685382381413,
+            0.6691394658753709
+          ],
+          "independent_position_accuracy": [
+            0.77225,
+            0.58,
+            0.433625,
+            0.327875,
+            0.27125,
+            0.271625,
+            0.195
+          ]
+        },
+        "transcript_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16664,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.083,
+          "acceptance_rate": 0.2975714285714286,
+          "t1_acceptance": 0.77225,
+          "prefix_acceptance": [
+            0.77225,
+            0.51625,
+            0.321,
+            0.20375,
+            0.129125,
+            0.08425,
+            0.056375
+          ],
+          "conditional_acceptance": [
+            0.77225,
+            0.6685011330527679,
+            0.6217917675544794,
+            0.6347352024922118,
+            0.6337423312883436,
+            0.6524685382381413,
+            0.6691394658753709
+          ],
+          "independent_position_accuracy": [
+            0.77225,
+            0.58,
+            0.433625,
+            0.327875,
+            0.27125,
+            0.271625,
+            0.195
+          ]
+        },
+        "metric": "offline_cached_prefix_proxy",
+        "validation_images": 1000,
+        "anchors_per_image": 8,
+        "teacher_transcript_agreement": 0.9771964285714285,
+        "online_validated": false,
+        "limitation": "Later cached teacher labels follow the saved transcript, not a regenerated divergent teacher prefix.",
+        "epoch": 5,
+        "step": 2815,
+        "images_seen": 89990,
+        "full_epoch_completed": true,
+        "pilot": false
+      },
+      "export_final": {
+        "teacher_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16657,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.082125,
+          "acceptance_rate": 0.29744642857142856,
+          "t1_acceptance": 0.773875,
+          "prefix_acceptance": [
+            0.773875,
+            0.516,
+            0.31925,
+            0.202,
+            0.128625,
+            0.084875,
+            0.0575
+          ],
+          "conditional_acceptance": [
+            0.773875,
+            0.6667743498627039,
+            0.6187015503875969,
+            0.6327329678935004,
+            0.6367574257425742,
+            0.6598639455782312,
+            0.6774668630338734
+          ],
+          "independent_position_accuracy": [
+            0.773875,
+            0.579875,
+            0.433125,
+            0.32775,
+            0.27125,
+            0.272625,
+            0.19625
+          ]
+        },
+        "teacher_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16657,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.082125,
+          "acceptance_rate": 0.29744642857142856,
+          "t1_acceptance": 0.773875,
+          "prefix_acceptance": [
+            0.773875,
+            0.516,
+            0.31925,
+            0.202,
+            0.128625,
+            0.084875,
+            0.0575
+          ],
+          "conditional_acceptance": [
+            0.773875,
+            0.6667743498627039,
+            0.6187015503875969,
+            0.6327329678935004,
+            0.6367574257425742,
+            0.6598639455782312,
+            0.6774668630338734
+          ],
+          "independent_position_accuracy": [
+            0.773875,
+            0.579875,
+            0.433125,
+            0.32775,
+            0.27125,
+            0.272625,
+            0.19625
+          ]
+        },
+        "transcript_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16664,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.083,
+          "acceptance_rate": 0.2975714285714286,
+          "t1_acceptance": 0.77225,
+          "prefix_acceptance": [
+            0.77225,
+            0.51625,
+            0.321,
+            0.20375,
+            0.129125,
+            0.08425,
+            0.056375
+          ],
+          "conditional_acceptance": [
+            0.77225,
+            0.6685011330527679,
+            0.6217917675544794,
+            0.6347352024922118,
+            0.6337423312883436,
+            0.6524685382381413,
+            0.6691394658753709
+          ],
+          "independent_position_accuracy": [
+            0.77225,
+            0.58,
+            0.433625,
+            0.327875,
+            0.27125,
+            0.271625,
+            0.195
+          ]
+        },
+        "transcript_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16664,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.083,
+          "acceptance_rate": 0.2975714285714286,
+          "t1_acceptance": 0.77225,
+          "prefix_acceptance": [
+            0.77225,
+            0.51625,
+            0.321,
+            0.20375,
+            0.129125,
+            0.08425,
+            0.056375
+          ],
+          "conditional_acceptance": [
+            0.77225,
+            0.6685011330527679,
+            0.6217917675544794,
+            0.6347352024922118,
+            0.6337423312883436,
+            0.6524685382381413,
+            0.6691394658753709
+          ],
+          "independent_position_accuracy": [
+            0.77225,
+            0.58,
+            0.433625,
+            0.327875,
+            0.27125,
+            0.271625,
+            0.195
+          ]
+        },
+        "metric": "offline_cached_prefix_proxy",
+        "validation_images": 1000,
+        "anchors_per_image": 8,
+        "teacher_transcript_agreement": 0.9771964285714285,
+        "online_validated": false,
+        "checkpoint_sha256": "94b769fd3f582da67f645e6282f7ea19c883971273a7b76f81d37ccee897b92d",
+        "kind": "dspine",
+        "precision": "reloaded BF16 export"
+      },
+      "export_provenance": {
+        "git_sha": "a74dea85025ea19ed26f4afa6b577d29f47d2d13",
+        "patch": "",
+        "argv": [
+          "${EXPERIMENT_ROOT}/control/evaluate_paired.py",
+          "--kind",
+          "dspine",
+          "--run",
+          "${EXPERIMENT_ROOT}/full/dspine-causal-control",
+          "--checkpoint",
+          "${EXPERIMENT_ROOT}/full/dspine-causal-control/epochs/epoch-05",
+          "--output",
+          "${EXPERIMENT_ROOT}/results/export-dspine-causal-control-epoch05.json"
+        ],
+        "time_utc": "2026-11-11T04:12:44.992753+00:00",
+        "packages": [
+          "# speculators: 0.9.0a0",
+          "# vllm: 0.31.0",
+          "# transformers: 5.17.0",
+          "# torch: 2.14.0a0+b2c75dd062.nv26.9.68203377",
+          "# compressed-tensors: 0.17.0"
+        ],
+        "torch_version": "2.14.0a0+b2c75dd062.nv26.09",
+        "cuda_version": "13.4",
+        "tf32_matmul": true,
+        "script_sha256": "ce5eb5fcf0102ce2e590fbf9177218d6dfceca71f5527fea006302d5080203dd",
+        "manifest_sha256": "cfe2721823da42ea86d6b9a3f2c4e38136a506b634f1f8ae47e534511d3392cc"
+      },
+      "training_best_epoch_exploratory": 5
+    },
+    "dspine": {
+      "label": "DSpine features",
+      "initial": {
+        "teacher_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 13817,
+          "proposed_tokens": 56000,
+          "accepted_length": 2.727125,
+          "acceptance_rate": 0.24673214285714284,
+          "t1_acceptance": 0.734875,
+          "prefix_acceptance": [
+            0.734875,
+            0.45325,
+            0.249125,
+            0.1395,
+            0.078625,
+            0.046375,
+            0.025375
+          ],
+          "conditional_acceptance": [
+            0.734875,
+            0.6167715597890798,
+            0.5496414782129068,
+            0.559959859508279,
+            0.5636200716845878,
+            0.589825119236884,
+            0.5471698113207547
+          ],
+          "independent_position_accuracy": [
+            0.734875,
+            0.526,
+            0.368875,
+            0.269625,
+            0.22125,
+            0.220125,
+            0.135625
+          ]
+        },
+        "teacher_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 13817,
+          "proposed_tokens": 56000,
+          "accepted_length": 2.727125,
+          "acceptance_rate": 0.24673214285714284,
+          "t1_acceptance": 0.734875,
+          "prefix_acceptance": [
+            0.734875,
+            0.45325,
+            0.249125,
+            0.1395,
+            0.078625,
+            0.046375,
+            0.025375
+          ],
+          "conditional_acceptance": [
+            0.734875,
+            0.6167715597890798,
+            0.5496414782129068,
+            0.559959859508279,
+            0.5636200716845878,
+            0.589825119236884,
+            0.5471698113207547
+          ],
+          "independent_position_accuracy": [
+            0.734875,
+            0.526,
+            0.368875,
+            0.269625,
+            0.22125,
+            0.220125,
+            0.135625
+          ]
+        },
+        "transcript_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 13833,
+          "proposed_tokens": 56000,
+          "accepted_length": 2.729125,
+          "acceptance_rate": 0.24701785714285715,
+          "t1_acceptance": 0.733875,
+          "prefix_acceptance": [
+            0.733875,
+            0.4545,
+            0.25,
+            0.14025,
+            0.079,
+            0.046375,
+            0.025125
+          ],
+          "conditional_acceptance": [
+            0.733875,
+            0.6193152784874808,
+            0.5500550055005501,
+            0.561,
+            0.5632798573975044,
+            0.5870253164556962,
+            0.5417789757412399
+          ],
+          "independent_position_accuracy": [
+            0.733875,
+            0.52725,
+            0.368125,
+            0.269625,
+            0.221375,
+            0.21925,
+            0.13475
+          ]
+        },
+        "transcript_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 13833,
+          "proposed_tokens": 56000,
+          "accepted_length": 2.729125,
+          "acceptance_rate": 0.24701785714285715,
+          "t1_acceptance": 0.733875,
+          "prefix_acceptance": [
+            0.733875,
+            0.4545,
+            0.25,
+            0.14025,
+            0.079,
+            0.046375,
+            0.025125
+          ],
+          "conditional_acceptance": [
+            0.733875,
+            0.6193152784874808,
+            0.5500550055005501,
+            0.561,
+            0.5632798573975044,
+            0.5870253164556962,
+            0.5417789757412399
+          ],
+          "independent_position_accuracy": [
+            0.733875,
+            0.52725,
+            0.368125,
+            0.269625,
+            0.221375,
+            0.21925,
+            0.13475
+          ]
+        }
+      },
+      "training_final": {
+        "teacher_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 17231,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.153875,
+          "acceptance_rate": 0.3076964285714286,
+          "t1_acceptance": 0.772375,
+          "prefix_acceptance": [
+            0.772375,
+            0.527375,
+            0.3365,
+            0.216125,
+            0.14175,
+            0.09475,
+            0.065
+          ],
+          "conditional_acceptance": [
+            0.772375,
+            0.6827965690241139,
+            0.638065892391562,
+            0.6422734026745914,
+            0.6558704453441295,
+            0.6684303350970018,
+            0.6860158311345647
+          ],
+          "independent_position_accuracy": [
+            0.772375,
+            0.584125,
+            0.423125,
+            0.313125,
+            0.24975,
+            0.217875,
+            0.179125
+          ]
+        },
+        "teacher_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16509,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.063625,
+          "acceptance_rate": 0.29480357142857144,
+          "t1_acceptance": 0.772375,
+          "prefix_acceptance": [
+            0.772375,
+            0.512875,
+            0.3165,
+            0.19925,
+            0.124875,
+            0.082,
+            0.05575
+          ],
+          "conditional_acceptance": [
+            0.772375,
+            0.6640233047418677,
+            0.617109432122837,
+            0.6295418641390206,
+            0.6267252195734002,
+            0.6566566566566566,
+            0.6798780487804879
+          ],
+          "independent_position_accuracy": [
+            0.772375,
+            0.577,
+            0.430625,
+            0.33125,
+            0.26925,
+            0.272375,
+            0.1975
+          ]
+        },
+        "transcript_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 17326,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.16575,
+          "acceptance_rate": 0.30939285714285714,
+          "t1_acceptance": 0.771875,
+          "prefix_acceptance": [
+            0.771875,
+            0.52925,
+            0.34075,
+            0.218875,
+            0.144375,
+            0.0955,
+            0.065125
+          ],
+          "conditional_acceptance": [
+            0.771875,
+            0.6856680161943319,
+            0.6438356164383562,
+            0.6423330887747616,
+            0.6596230725299829,
+            0.6614718614718614,
+            0.6819371727748691
+          ],
+          "independent_position_accuracy": [
+            0.771875,
+            0.5845,
+            0.4245,
+            0.31325,
+            0.2505,
+            0.21675,
+            0.1785
+          ]
+        },
+        "transcript_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16503,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.062875,
+          "acceptance_rate": 0.2946964285714286,
+          "t1_acceptance": 0.771875,
+          "prefix_acceptance": [
+            0.771875,
+            0.51325,
+            0.3175,
+            0.20025,
+            0.124625,
+            0.080875,
+            0.0545
+          ],
+          "conditional_acceptance": [
+            0.771875,
+            0.6649392712550607,
+            0.6186069167072576,
+            0.6307086614173228,
+            0.6223470661672909,
+            0.6489468405215647,
+            0.6738794435857806
+          ],
+          "independent_position_accuracy": [
+            0.771875,
+            0.577875,
+            0.431375,
+            0.33075,
+            0.269,
+            0.270875,
+            0.19625
+          ]
+        },
+        "metric": "offline_cached_prefix_proxy",
+        "validation_images": 1000,
+        "anchors_per_image": 8,
+        "teacher_transcript_agreement": 0.9771964285714285,
+        "online_validated": false,
+        "limitation": "Later cached teacher labels follow the saved transcript, not a regenerated divergent teacher prefix.",
+        "epoch": 5,
+        "step": 2815,
+        "images_seen": 89990,
+        "full_epoch_completed": true,
+        "pilot": false
+      },
+      "export_final": {
+        "teacher_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 17238,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.15475,
+          "acceptance_rate": 0.3078214285714286,
+          "t1_acceptance": 0.77225,
+          "prefix_acceptance": [
+            0.77225,
+            0.52725,
+            0.3365,
+            0.216,
+            0.142,
+            0.095375,
+            0.065375
+          ],
+          "conditional_acceptance": [
+            0.77225,
+            0.6827452249919068,
+            0.638217164532954,
+            0.6419019316493314,
+            0.6574074074074074,
+            0.6716549295774648,
+            0.6854521625163827
+          ],
+          "independent_position_accuracy": [
+            0.77225,
+            0.583875,
+            0.422875,
+            0.312625,
+            0.24975,
+            0.217875,
+            0.17925
+          ]
+        },
+        "teacher_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16490,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.06125,
+          "acceptance_rate": 0.29446428571428573,
+          "t1_acceptance": 0.77225,
+          "prefix_acceptance": [
+            0.77225,
+            0.512625,
+            0.31675,
+            0.198625,
+            0.124375,
+            0.081375,
+            0.05525
+          ],
+          "conditional_acceptance": [
+            0.77225,
+            0.6638070573000971,
+            0.6178980736405755,
+            0.6270718232044199,
+            0.6261799874134676,
+            0.6542713567839196,
+            0.6789554531490015
+          ],
+          "independent_position_accuracy": [
+            0.77225,
+            0.57725,
+            0.431125,
+            0.3305,
+            0.26925,
+            0.272875,
+            0.197125
+          ]
+        },
+        "transcript_selected": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 17316,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.1645,
+          "acceptance_rate": 0.3092142857142857,
+          "t1_acceptance": 0.7715,
+          "prefix_acceptance": [
+            0.7715,
+            0.5285,
+            0.340125,
+            0.2185,
+            0.1445,
+            0.096125,
+            0.06525
+          ],
+          "conditional_acceptance": [
+            0.7715,
+            0.6850291639662994,
+            0.6435666982024598,
+            0.6424108783535465,
+            0.6613272311212814,
+            0.6652249134948097,
+            0.6788036410923277
+          ],
+          "independent_position_accuracy": [
+            0.7715,
+            0.584,
+            0.42425,
+            0.312875,
+            0.2505,
+            0.21675,
+            0.17825
+          ]
+        },
+        "transcript_unary": {
+          "blocks": 8000,
+          "accepted_draft_tokens": 16479,
+          "proposed_tokens": 56000,
+          "accepted_length": 3.059875,
+          "acceptance_rate": 0.29426785714285714,
+          "t1_acceptance": 0.7715,
+          "prefix_acceptance": [
+            0.7715,
+            0.512625,
+            0.31775,
+            0.199625,
+            0.124,
+            0.08025,
+            0.054125
+          ],
+          "conditional_acceptance": [
+            0.7715,
+            0.6644523655217109,
+            0.6198488173616191,
+            0.6282454760031472,
+            0.6211646837820914,
+            0.6471774193548387,
+            0.6744548286604362
+          ],
+          "independent_position_accuracy": [
+            0.7715,
+            0.578125,
+            0.431875,
+            0.330125,
+            0.268875,
+            0.2715,
+            0.195875
+          ]
+        },
+        "metric": "offline_cached_prefix_proxy",
+        "validation_images": 1000,
+        "anchors_per_image": 8,
+        "teacher_transcript_agreement": 0.9771964285714285,
+        "online_validated": false,
+        "checkpoint_sha256": "dc22a24d8326f0afb520336eb16718221cdc796e2d01af3fe8c81bf0a39f9618",
+        "kind": "dspine",
+        "precision": "reloaded BF16 export"
+      },
+      "export_provenance": {
+        "git_sha": "a74dea85025ea19ed26f4afa6b577d29f47d2d13",
+        "patch": "",
+        "argv": [
+          "${EXPERIMENT_ROOT}/control/evaluate_paired.py",
+          "--kind",
+          "dspine",
+          "--run",
+          "${EXPERIMENT_ROOT}/full/dspine",
+          "--checkpoint",
+          "${EXPERIMENT_ROOT}/full/dspine/epochs/epoch-05",
+          "--output",
+          "${EXPERIMENT_ROOT}/results/export-dspine-epoch05.json"
+        ],
+        "time_utc": "2026-11-11T04:14:09.166359+00:00",
+        "packages": [
+          "# speculators: 0.9.0a0",
+          "# vllm: 0.31.0",
+          "# transformers: 5.17.0",
+          "# torch: 2.14.0a0+b2c75dd062.nv26.9.68203377",
+          "# compressed-tensors: 0.17.0"
+        ],
+        "torch_version": "2.14.0a0+b2c75dd062.nv26.09",
+        "cuda_version": "13.4",
+        "tf32_matmul": true,
+        "script_sha256": "ce5eb5fcf0102ce2e590fbf9177218d6dfceca71f5527fea006302d5080203dd",
+        "manifest_sha256": "cfe2721823da42ea86d6b9a3f2c4e38136a506b634f1f8ae47e534511d3392cc"
+      },
+      "training_best_epoch_exploratory": 5
+    }
+  },
+  "comparisons": {
+    "dspine_minus_dense-reference": {
+      "AL_difference": 0.00425,
+      "AL_95pct_image_bootstrap_CI": [
+        -0.021,
+        0.029875
+      ],
+      "AR_difference_percentage_points": 0.06071428571428572,
+      "AR_95pct_CI_percentage_points": [
+        -0.3,
+        0.42678571428571427
+      ],
+      "resamples": 10000,
+      "seed": 20261111,
+      "unit": "image (8 fixed anchors)"
+    },
+    "dspine_minus_dspine-causal-control": {
+      "AL_difference": 0.072625,
+      "AL_95pct_image_bootstrap_CI": [
+        0.05625,
+        0.08925
+      ],
+      "AR_difference_percentage_points": 1.0374999999999999,
+      "AR_95pct_CI_percentage_points": [
+        0.8035714285714287,
+        1.275
+      ],
+      "resamples": 10000,
+      "seed": 20261111,
+      "unit": "image (8 fixed anchors)"
+    },
+    "dspine-causal-control_minus_dense-reference": {
+      "AL_difference": -0.068375,
+      "AL_95pct_image_bootstrap_CI": [
+        -0.09212812499999999,
+        -0.044125
+      ],
+      "AR_difference_percentage_points": -0.9767857142857144,
+      "AR_95pct_CI_percentage_points": [
+        -1.3161160714285713,
+        -0.6303571428571428
+      ],
+      "resamples": 10000,
+      "seed": 20261111,
+      "unit": "image (8 fixed anchors)"
+    }
+  }
+}

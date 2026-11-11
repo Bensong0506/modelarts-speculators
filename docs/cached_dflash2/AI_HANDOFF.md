@@ -2,6 +2,8 @@
 
 # 同事 AI 接手入口：dense 业务增训
 
+本轮离线结果与复现计数见 [DSpine 结果](results/qwen38_dspine_20261111/README.md)。
+
 本分支：`codex/dflash2-dense-business-training`。当前任务是用内网业务数据继续训练普通 dense DFlash2，首位及后六位全部由 DFlash2 提出。训练入口为 `speculators train-cached-dflash2`，只接受 `arm: dense`；不需要原生 MTP sidecar。
 
 D-MTP 的 token/fusion 实现与实验继续保留在 [codex/dflash2-allava-dmtp-training](https://github.com/Bensong0506/modelarts-speculators/tree/codex/dflash2-allava-dmtp-training)，该分支没有被本次拆分修改。不要在 dense 业务分支加入 D-MTP 配方；需要继续 D-MTP 时使用它自己的分支和工作目录。

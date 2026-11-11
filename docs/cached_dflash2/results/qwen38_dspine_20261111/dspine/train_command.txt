@@ -1,0 +1,9 @@
+# Timestamp: 2026-11-11T03:15:36.027410+00:00
+# Git SHA: a74dea85025ea19ed26f4afa6b577d29f47d2d13
+# World size: 1
+# speculators: 0.9.0a0
+# vllm: 0.31.0
+# transformers: 5.17.0
+# torch: 2.14.0a0+b2c75dd062.nv26.9.68203377
+# compressed-tensors: 0.17.0
+${EXPERIMENT_ROOT}/dspine/src/speculators/train/cached_dflash2/__main__.py --config ${EXPERIMENT_ROOT}/dspine/examples/cached_dflash2/feature-dspine.yaml
