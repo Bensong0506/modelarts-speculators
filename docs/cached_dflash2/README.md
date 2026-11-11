@@ -1,3 +1,5 @@
+> 当前分支新增 [DSpine 离线特性对照](FEATURE_DSPINE.md)。下文原 dense 约定适用于关闭特性的路径；新结构、loss 和导出边界以特性指南为准。
+
 # Dense DFlash2：ALLaVA 与内网业务增训
 
 分支 `codex/dflash2-dense-business-training` 专用于普通 dense DFlash2 continuation。`speculators train-cached-dflash2` 读取 target 特征缓存，训练 backbone 预测七位草稿 token；target Qwen、共享 embedding/head 和 selector 保持冻结。它不对 Qwen 本体做业务 SFT。

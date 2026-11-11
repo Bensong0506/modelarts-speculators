@@ -26,6 +26,8 @@ from .common import (
     prefix_summary,
 )
 from .config import CachedDFlash2Config
+from .dspine import DSpineDraft
+from .dspine_loss import dspine_loss
 from .loss import frozen_head_loss, head_candidates
 from .model import Draft
 
@@ -41,6 +43,13 @@ def selector_hash(model):
 
 
 def selected_path(model, hidden, candidates, unary, first):
+    if isinstance(model, DSpineDraft):
+        if not model.feature_enabled:
+            return candidates[:, :, 0]
+        scores = model.transition_scores(
+            model.pre_injection, candidates, first, model.lm_head.weight
+        )
+        return model.select_cached(scores, candidates)
     prev, chosen = first, []
     for j in range(hidden.shape[1]):
         gate = model.candidate_selector.predecessor_codebook[
@@ -219,10 +228,25 @@ def train(a: CachedDFlash2Config):  # noqa: C901
     epoch_steps = [sum(ep == e for ep, _ in plan) for e in range(1, a.epochs + 1)]
     total = len(plan)
     warmup = int(total * a.warmup_fraction)
-    model = Draft.load(a.dense_checkpoint, a.shared, a.device)
+    model = (
+        DSpineDraft.load_feature(
+            a.dense_checkpoint,
+            a.shared,
+            a.device,
+            a.dspine_enabled,
+            a.transfer_rank,
+            a.message_size,
+        )
+        if a.dspine_enabled or a.dspine_causal_control
+        else Draft.load(a.dense_checkpoint, a.shared, a.device)
+    )
+    model.total_steps = total
+    model.warmup_ratio = a.warmup_fraction
     params = []
     for name, parameter in model.named_parameters():
         trainable = not name.startswith(FROZEN)
+        if a.dspine_causal_control and name.startswith("injection."):
+            trainable = False
         parameter.requires_grad_(trainable)
         if trainable:
             parameter.data = parameter.data.float()
@@ -273,13 +297,15 @@ def train(a: CachedDFlash2Config):  # noqa: C901
         "tf32_matmul": torch.backends.cuda.matmul.allow_tf32,
         "trainable_parameters": sum(x.numel() for x in params),
         "frozen_components": list(FROZEN),
-        "ce_target": (
-            "cached verifier logits argmax at same prefix, never transcript IDs"
-        ),
+        "ce_target": ("transcript labels for DSpine; teacher argmax for CE"),
         "precision": (
             "FP32 master/Adam; BF16 autocast, frozen head and cached teacher features"
         ),
         "loss_weights": "exp(-slot/4), normalized to mean one",
+        "dspine_feature": model.config.get("dspine_feature"),
+        "objective_normalization": (
+            "weighted proposal token mean; differs from upstream sequence scaling"
+        ),
         "selection": (
             "validation teacher_selected prefix AL; vLLM confirmation required"
         ),
@@ -326,6 +352,7 @@ def train(a: CachedDFlash2Config):  # noqa: C901
             step = index + 1
             epoch, batch = plan[index]
             model.train()
+            model.step = step
             data = cache.load_batch(batch, model.config["hidden_size"], a.device)
             anchors = cache.choose_anchors(data, a.anchors, rng)
             rows = torch.arange(len(batch), device=a.device)[:, None, None]
@@ -338,9 +365,21 @@ def train(a: CachedDFlash2Config):  # noqa: C901
                 weights = torch.exp(-torch.arange(hidden.shape[1], device=a.device) / 4)
                 weights /= weights.mean()
                 teacher = data["teacher_hidden"][rows, teacher_index].reshape_as(hidden)
-                loss, _, _ = frozen_head_loss(
-                    hidden, teacher, model.lm_head.weight, weights, a.objective
-                )
+                terms = {}
+                if a.objective == "dspine":
+                    labels = data["ids"][rows, teacher_index + 1].reshape(
+                        hidden.shape[:-1]
+                    )
+                    predecessors = data["ids"][rows, teacher_index].reshape(
+                        hidden.shape[:-1]
+                    )
+                    loss, terms = dspine_loss(
+                        model, hidden, teacher, labels, predecessors, weights
+                    )
+                else:
+                    loss, _, _ = frozen_head_loss(
+                        hidden, teacher, model.lm_head.weight, weights, a.objective
+                    )
             if not torch.isfinite(loss):
                 raise FloatingPointError("Nonfinite training loss")
             loss.backward()
@@ -348,6 +387,7 @@ def train(a: CachedDFlash2Config):  # noqa: C901
             optimizer.step()
             seen += len(batch)
             metrics = {
+                **{k: float(v) for k, v in terms.items()},
                 "step": step,
                 "epoch": epoch,
                 "loss": float(loss),
@@ -368,7 +408,9 @@ def train(a: CachedDFlash2Config):  # noqa: C901
                     a.output / "progress.json", dict(state="training", **metrics)
                 )
             # Free activations before full validation/checkpoint CPU copies.
-            del hidden, teacher, data, loss
+            del hidden, teacher, data, loss, terms
+            model.pre_injection = None
+            model.layer_features = None
             at_epoch_end = step == total or plan[step][0] != epoch
             if at_epoch_end or (a.pilot_steps and step == a.pilot_steps):
                 measured = evaluate(model, val, a)

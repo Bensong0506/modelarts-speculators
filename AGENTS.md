@@ -1,5 +1,9 @@
 # Speculators — Agent Guide
 
+## DSpine offline feature comparison
+
+This is `codex/dspine-qwen38-offline`, branched from the dense business-data base. Read [the feature guide](docs/cached_dflash2/FEATURE_DSPINE.md) first. The feature uses the existing Qwen3.8-Flash-Next draft and five-layer offline cache; exported feature architectures require their own offline loader and are not serving-verified. The inherited dense workflow below applies only when the feature is disabled.
+
 ## Dense business-data workflow
 
 This is `codex/dflash2-dense-business-training`. For `train-cached-dflash2`, read [the AI handoff](docs/cached_dflash2/AI_HANDOFF.md) and [business-data guide](docs/cached_dflash2/BUSINESS_DATA.md). The cached trainer supports dense only, with target feature caches and seven predicted positions. Do not reintroduce token/fusion recipes here; D-MTP work stays on `codex/dflash2-allava-dmtp-training`.

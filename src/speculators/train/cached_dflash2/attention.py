@@ -42,6 +42,9 @@ def forward(module, x, context, anchors, window):
         )
     block_ids = torch.arange(per * slots, device=device) // slots
     noise = (block_ids[:, None] == block_ids[None, :])[None].expand(contexts, -1, -1)
+    if getattr(module, "dspine_causal", False):
+        positions = torch.arange(per * slots, device=device)
+        noise = noise & (positions[:, None] >= positions[None, :])[None]
     mask = torch.cat([mask, noise], -1)[:, None]
     y = sdpa(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), attn_mask=mask)
     return module.o_proj(y.transpose(1, 2).reshape(blocks, slots, -1))

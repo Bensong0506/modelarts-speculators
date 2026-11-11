@@ -19,7 +19,11 @@ class CachedDFlash2Config(BaseModel):
     manifest: Path
     output: Path
     arm: Literal["dense"] = "dense"
-    objective: Literal["kl", "ce"] = "kl"
+    objective: Literal["kl", "ce", "dspine"] = "kl"
+    dspine_enabled: bool = False
+    dspine_causal_control: bool = False
+    transfer_rank: int = Field(default=1024, gt=0)
+    message_size: int = Field(default=512, gt=0)
     lr: float = Field(default=3e-5, gt=0)
     device: str = "cuda"
     epochs: int = Field(default=5, gt=0)
@@ -40,6 +44,12 @@ class CachedDFlash2Config(BaseModel):
 
     @model_validator(mode="after")
     def validate_run(self):
+        if self.dspine_enabled and self.dspine_causal_control:
+            raise ValueError("Select DSpine or its causal control, not both")
+        if self.objective == "dspine" and not (
+            self.dspine_enabled or self.dspine_causal_control
+        ):
+            raise ValueError("DSpine objective requires its model or causal control")
         if self.pilot_val_images and not self.pilot_steps:
             raise ValueError("Reduced validation is allowed only in an explicit pilot")
         if self.pilot_steps and self.resume:

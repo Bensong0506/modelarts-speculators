@@ -1,3 +1,5 @@
+> 本分支：[DSpine 在 Qwen3.8-Flash-Next 上的离线特性对照](docs/cached_dflash2/FEATURE_DSPINE.md)。
+
 <div align="center">
 
 ![Speculators logo](./docs/assets/branding/speculators-logo-white.svg#gh-dark-mode-only) ![Speculators logo](./docs/assets/branding/speculators-logo-black.svg#gh-light-mode-only)
