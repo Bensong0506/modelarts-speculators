@@ -1,0 +1,2 @@
+你那边提取 hiddenstate 是在这个位置提取的吗 
+vLLM提取Qwen3.8-Flash-Next的layer 48 hidden states时，在layer循环内部捕获了_hs_single（final_mixer之前的多流平均值），但正确值应该是final_mixer之后的sample_hidden_states。
