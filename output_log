@@ -1,2 +1,22 @@
-你那边提取 hiddenstate 是在这个位置提取的吗 
-vLLM提取Qwen3.8-Flash-Next的layer 48 hidden states时，在layer循环内部捕获了_hs_single（final_mixer之前的多流平均值），但正确值应该是final_mixer之后的sample_hidden_states。
+
+当前这轮用于 teacher 监督的最终 hidden，取的是 final_mixer 之后的 sample_hidden_states，没有拿循环内的多流均值代替。 我刚核对了 20.22 上的提取代码和运行配置，worker 哈希与本地一致。
+
+这里有两路不同的 hidden：
+用途	我们实际取的位置
+DFlash2 的中间层输入 features	第 6、16、26、36、46 层完成后的多流平均值
+计算 teacher logits / KL 的 teacher_hidden	final_mixer 之后的 sample_hidden_states
+
+
+具体代码链路是：
+# 目标模型：循环结束后
+multi_hidden, sample_hidden_states, _ = final_mixer.combine_and_mix(...)
+return sample_hidden_states, aux_hidden_states
+
+# 提取 worker
+features = torch.cat(result[1], -1)
+teacher_hidden = result[0]
+对应 [目标模型返回位置 (line 596)](/Users/songwenxuan/Documents/ChatGPT/speculative_decoding/modelarts-speculators-online/integrations/vllm_dmtp/overlay/vllm/models/qwen4_exp/nvidia/model.py:596) 和 [提取 worker (line 33)](/Users/songwenxuan/Documents/ChatGPT/speculative_decoding/modelarts-speculators-online/src/speculators/train/online_dflash2/worker.py:33)。训练的 KL 确实使用这个 teacher_hidden，见 [loss 调用 (line 418)](/Users/songwenxuan/Documents/ChatGPT/speculative_decoding/modelarts-speculators-online/src/speculators/train/cached_dflash2/trainer.py:418)。
+
+你指出的问题在这份代码的 auxiliary 接口中确实存在：如果请求辅助层 48，再把该值当成最终用于 LM head 的 hidden，就会取成 final_mixer 之前的多流均值。 这两个值不能混用。我们当前辅助层配置没有 48，最终 teacher hidden 又是单独取的，因此当前这条训练路径没有踩中这个问题。
+
+另外，原生 MTP 输入使用的多流 multi_hidden 是另一种用途，本来就需要保留多流状态，不能一起替换成单流的 sample_hidden_states。
